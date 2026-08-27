@@ -13,12 +13,22 @@ model Task {
   description    String?
   category       String?
   points         Int              @default(10)
-  // DAILY | SPECIFIC_DAYS | WEEKLY | ONE_TIME
-  recurrenceType String           @default("DAILY")
-  // Selected weekdays as validated CSV, 0=Sun..6=Sat ("1,3,5" = Mon/Wed/Fri). Used by SPECIFIC_DAYS.
-  daysOfWeek     String           @default("0,1,2,3,4,5,6")
-  // ONE_TIME only (YYYY-MM-DD).
-  dueDate        String?
+  // Recurrence model: NONE | DAILY | WEEKLY | CUSTOM | WEEKLY_GOAL
+  recurrenceType String           @default("NONE")
+  // For DAILY/WEEKLY/CUSTOM: interval (default: 1)
+  interval       Int              @default(1)
+  // For CUSTOM: unit (DAY | WEEK | MONTH)
+  unit           String?          // DAY, WEEK, MONTH
+  // For WEEKLY/WEEKLY_GOAL/CUSTOM with WEEK unit: selected weekdays (CSV, 0=Sun..6=Sat)
+  selectedWeekdays String?       // "0,1,2,3,4,5,6"
+  // For CUSTOM with MONTH unit: day of month (1-31)
+  dayOfMonth     Int?             // 1-31
+  // For NONE (one-time tasks): due date
+  dueDate        String?          // YYYY-MM-DD
+  // For all types: start date (when recurrence begins)
+  startDate      String?          // YYYY-MM-DD
+  // For all types: optional end date (when recurrence ends)
+  endDate        String?          // YYYY-MM-DD
   active         Boolean          @default(true)
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
@@ -27,12 +37,6 @@ model Task {
   @@index([recurrenceType])
 }
 
-// One row per satisfied occurrence. occurrenceDate is the canonical occurrence
-// key from lib/recurrence.getOccurrenceKey() — the calendar date for most
-// types, or the week's Monday for WEEKLY tasks. unique(taskId, occurrenceDate)
-// therefore enforces "one completion per occurrence" at the database layer.
-// completedOn is the local calendar date of the completion event itself.
-// pointsEarned is a historical snapshot and is never recalculated.
 model TaskCompletion {
   id             String   @id @default(cuid())
   taskId         String
