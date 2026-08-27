@@ -1,0 +1,150 @@
+import { prisma } from './prisma'
+import { getLocalDateString, getDaysOfWeek } from './dates'
+
+export async function getDashboardData(dateStr?: string) {
+  const targetDate = dateStr || getLocalDateString()
+
+  // 1. Fetch active tasks (or tasks that have completions on this date)
+  const tasks = await prisma.task.findMany({
+    where: {
+      active: true,
+    },
+    include: {
+      completions: {
+        where: {
+          date: targetDate,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: 'asc',
+    },
+  })
+
+  // 2. Calculate daily score
+  let earnedToday = 0
+  let maxDaily = 0
+
+  const taskList = tasks.map((task) => {
+    const isCompleted = task.completions.length > 0
+    // Applicable for today: Daily tasks are always applicable. Weekly tasks count towards today if active or completed.
+    maxDaily += task.points
+    if (isCompleted) {
+      earnedToday += task.completions[0].pointsEarned
+    }
+    return {
+      id: task.id,
+      title: task.title,
+      description: task.description,
+      category: task.category,
+      points: task.points,
+      frequency: task.frequency,
+      active: task.active,
+      isCompleted,
+    }
+  })
+
+  const dailyPercentage = maxDaily > 0 ? Math.round((earnedToday / maxDaily) * 100) : 0
+
+  // 3. Weekly statistics (Monday - Sunday)
+  const weekDays = getDaysOfWeek(new Date(targetDate + 'T00:00:00'))
+  const startDate = weekDays[0].dateStr
+  const endDate = weekDays[6].dateStr
+
+  const weekCompletions = await prisma.taskCompletion.findMany({
+    where: {
+      date: {
+        gte: startDate,
+        lte: endDate,
+      },
+    },
+    include: {
+      task: true,
+    },
+  })
+
+  const weeklyEarned = weekCompletions.reduce((acc, c) => acc + c.pointsEarned, 0)
+
+  // Max weekly points = sum of daily tasks * 7 + sum of weekly tasks (if active)
+  const activeTasks = await prisma.task.findMany({
+    where: { active: true },
+  })
+
+  let weeklyMax = 0
+  activeTasks.forEach((t) => {
+    if (t.frequency === 'DAILY') {
+      weeklyMax += t.points * 7
+    } else {
+      weeklyMax += t.points // Weekly task counts once per week
+    }
+  })
+
+  const weeklyPercentage = weeklyMax > 0 ? Math.min(100, Math.round((weeklyEarned / weeklyMax) * 100)) : 0
+
+  // Count completed vs incomplete tasks for today
+  const completedCount = taskList.filter((t) => t.isCompleted).length
+  const incompleteCount = taskList.length - completedCount
+
+  // 4. Daily breakdown for the 7-day overview
+  const weeklyOverview = []
+  for (const day of weekDays) {
+    const dayCompletions = weekCompletions.filter((c) => c.date === day.dateStr)
+    const dayEarned = dayCompletions.reduce((acc, c) => acc + c.pointsEarned, 0)
+    // Day max points: active daily tasks max + active weekly tasks if completed on this day (or distributed)
+    const dayMax = activeTasks
+      .filter((t) => t.frequency === 'DAILY')
+      .reduce((acc, t) => acc + t.points, 0)
+
+    const percentage = dayMax > 0 ? Math.min(100, Math.round((dayEarned / dayMax) * 100)) : 0
+    weeklyOverview.push({
+      label: day.label,
+      date: day.dateStr,
+      earned: dayEarned,
+      max: dayMax,
+      percentage,
+    })
+  }
+
+  // 5. Current streak calculation (consecutive days with >0 points ending yesterday or today)
+  let streak = 0
+  const checkDate = new Date()()
+  while (true) {
+    const checkStr = getLocalDateString(checkDate)
+    const completionsOnDay = await prisma.taskCompletion.findMany({
+      where: { date: checkStr },
+    })
+    const totalPointsOnDay = completionsOnDay.reduce((acc, c) => acc + c.pointsEarned, 0)
+    if (totalPointsOnDay > 0) {
+      streak++
+      checkDate.setDate(checkDate.getDate() - 1)
+    } else {
+      // If today has 0 points, check if yesterday had points before breaking streak
+      if (checkStr === getLocalDateString()) {
+        checkDate.setDate(checkDate.getDate() - 1)
+        const yesterdayStr = getLocalDateString(checkDate)
+        const yesterdayCompletions = await prisma.taskCompletion.findMany({
+          where: { date: yesterdayStr },
+        })
+        if (yesterdayCompletions.reduce((acc, c) => acc + c.pointsEarned, 0) > 0) {
+          continue
+        }
+      }
+      break
+    }
+  }
+
+  return {
+    targetDate,
+    earnedToday,
+    maxDaily,
+    dailyPercentage,
+    weeklyEarned,
+    weeklyMax,
+    weeklyPercentage,
+    completedCount,
+    incompleteCount,
+    streak,
+    taskList,
+    weeklyOverview,
+  }
+}

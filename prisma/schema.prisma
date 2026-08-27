@@ -1,0 +1,47 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Task {
+  id             String           @id @default(cuid())
+  title          String
+  description    String?
+  category       String?
+  points         Int              @default(10)
+  // DAILY | SPECIFIC_DAYS | WEEKLY | ONE_TIME
+  recurrenceType String           @default("DAILY")
+  // Selected weekdays as validated CSV, 0=Sun..6=Sat ("1,3,5" = Mon/Wed/Fri). Used by SPECIFIC_DAYS.
+  daysOfWeek     String           @default("0,1,2,3,4,5,6")
+  // ONE_TIME only (YYYY-MM-DD).
+  dueDate        String?
+  active         Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  completions    TaskCompletion[]
+
+  @@index([recurrenceType])
+}
+
+// One row per satisfied occurrence. occurrenceDate is the canonical occurrence
+// key from lib/recurrence.getOccurrenceKey() — the calendar date for most
+// types, or the week's Monday for WEEKLY tasks. unique(taskId, occurrenceDate)
+// therefore enforces "one completion per occurrence" at the database layer.
+// completedOn is the local calendar date of the completion event itself.
+// pointsEarned is a historical snapshot and is never recalculated.
+model TaskCompletion {
+  id             String   @id @default(cuid())
+  taskId         String
+  task           Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  completedAt    DateTime @default(now())
+  occurrenceDate String
+  completedOn    String
+  pointsEarned   Int
+
+  @@unique([taskId, occurrenceDate])
+  @@index([completedOn])
+}
