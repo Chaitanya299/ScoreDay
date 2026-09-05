@@ -1,29 +1,24 @@
-// Server-side task input validation — only 4 recurrence types.
+// Server-side task input validation — supports expanded recurrence model
 import {
   RECURRENCE_TYPES,
-  serializeDaysOfWeek,
-  parseDaysInput,
-  isValidDateString,
-  isPastDateString,
   type RecurrenceType,
+  type RecurrenceTask,
 } from './recurrence'
 import { getLocalDateString } from './dates'
 
-export interface ValidatedTask {
+export interface ValidatedTask extends RecurrenceTask {
   title: string
   description: string | null
   category: string | null
   points: number
-  recurrenceType: string
-  daysOfWeek: string
-  dueDate: string | null
+  active: boolean
 }
 
 export function validateRecurrenceInput(
   body: Record<string, unknown>,
-  existing?: { dueDate: string | null } | null
+  existing?: RecurrenceTask | null
 ): { error: string } | { data: ValidatedTask } {
-  const { title, description, category, points, recurrenceType } = body
+  const { title, description, category, points, active, recurrenceType } = body
 
   if (!title || typeof title !== 'string' || title.trim() === '') {
     return { error: 'Title is required' }
@@ -44,29 +39,26 @@ export function validateRecurrenceInput(
     category: category ? String(category).trim() : null,
     points: parsedPoints,
     recurrenceType: recurrenceType as string,
-    daysOfWeek: '0,1,2,3,4,5,6',
-    dueDate: null,
+    interval: 1,
+    unit: undefined,
+    selectedWeekdays: undefined,
+    dayOfMonth: undefined,
+    startDate: undefined,
+    endDate: undefined,
+    dueDate: undefined,
+    active: active ?? true,
   }
 
   switch (recurrenceType) {
     case 'DAILY':
     case 'WEEKLY':
+    case 'WEEKLY_GOAL':
+      // These types don't require additional validation beyond type
       break
 
-    case 'SPECIFIC_DAYS': {
-      if (body.daysOfWeek === undefined) {
-        return { error: 'Select at least one day of the week' }
-      }
-      const days = parseDaysInput(body.daysOfWeek)
-      if (days === null) {
-        return { error: 'daysOfWeek must contain weekday numbers between 0 (Sun) and 6 (Sat)' }
-      }
-      return { data: { ...base, daysOfWeek: serializeDaysOfWeek(days) } }
-    }
-
-    case 'ONE_TIME': {
+    case 'NONE': {
       if (!isValidDateString(body.dueDate)) {
-        return { error: 'ONE_TIME requires a valid dueDate (YYYY-MM-DD)' }
+        return { error: 'NONE requires a valid dueDate (YYYY-MM-DD)' }
       }
       const dueDate = body.dueDate as string
       const today = getLocalDateString()
@@ -75,6 +67,65 @@ export function validateRecurrenceInput(
         return { error: 'Due date cannot be in the past' }
       }
       return { data: { ...base, dueDate } }
+    }
+
+    case 'CUSTOM': {
+      // Validate interval
+      const interval = body.interval !== undefined ? Number(body.interval) : 1
+      if (Number.isNaN(interval) || interval < 1) {
+        return { error: 'Interval must be at least 1' }
+      }
+
+      // Validate unit
+      const unit = body.unit as string | undefined
+      if (!unit || !['DAY', 'WEEK', 'MONTH'].includes(unit)) {
+        return { error: 'Unit must be DAY, WEEK, or MONTH' }
+      }
+
+      // Validate selectedWeekdays for WEEK unit
+      let selectedWeekdays = body.selectedWeekdays as string | undefined
+      if (unit === 'WEEK') {
+        if (!selectedWeekdays) {
+          return { error: 'Select at least one day of the week' }
+        }
+        const days = parseDaysInput(selectedWeekdays)
+        if (days === null) {
+          return { error: 'selectedWeekdays must contain weekday numbers between 0 (Sun) and 6 (Sat)' }
+        }
+        selectedWeekdays = serializeDaysOfWeek(days)
+      }
+
+      // Validate dayOfMonth for MONTH unit
+      let dayOfMonth = body.dayOfMonth !== undefined ? Number(body.dayOfMonth) : undefined
+      if (unit === 'MONTH') {
+        if (dayOfMonth === undefined || dayOfMonth < 1 || dayOfMonth > 31) {
+          return { error: 'Day of month must be between 1 and 31' }
+        }
+      }
+
+      // Validate dates
+      let startDate = body.startDate as string | undefined
+      let endDate = body.endDate as string | undefined
+      
+      if (startDate && !isValidDateString(startDate)) {
+        return { error: 'Start date must be valid (YYYY-MM-DD)' }
+      }
+      if (endDate && !isValidDateString(endDate)) {
+        return { error: 'End date must be valid (YYYY-MM-DD)' }
+      }
+      if (startDate && endDate && startDate > endDate) {
+        return { error: 'Start date must be before end date' }
+      }
+
+      return { data: { 
+        ...base, 
+        interval,
+        unit,
+        selectedWeekdays,
+        dayOfMonth,
+        startDate,
+        endDate
+      } }
     }
   }
 

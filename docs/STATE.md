@@ -1,7 +1,7 @@
 # STATE — <!-- updated: 2026-08-27 -->
 
 ## Current focus
-Finalizing frequency system simplification and documentation system.
+Finalizing implementation of Apple Reminders-inspired frequency UI and verifying new recurrence engine.
 
 ## Shape
 ```mermaid
@@ -20,19 +20,22 @@ flowchart TD
 ```
 
 ## Done
-- Simplified frequency system to 4 options (Every day, Certain days, Any day this week, One time)
-- Removed XP/Level system, retaining POINTS and SCORE% only
-- Implemented deterministic recurrence engine with status tracking
+- Implemented deterministic recurrence engine with 4 core types (DAILY, SPECIFIC_DAYS, WEEKLY, ONE_TIME)
 - Added comprehensive test suite for recurrence logic (17 tests)
-- Updated all UI components to reflect simplified frequency options
-- Added Coming up strip for one-time tasks in next 7 days
-- Improved validation with past date prevention for one-time tasks
-- Established Architecture Decision Record (ADR) practice with 2 decisions recorded
+- Migrated legacy frequency system to new model preserving all completion history
+- Established Architecture Decision Record (ADR) practice with 6 decisions recorded
+- Added nanoid for client-side ID generation
+- Added Zod for request validation
+- Upgraded lodash to latest version
+- Completed frequency system redesign: Apple Reminders-inspired UI with single Repeat row → sheet/modal
+- Added WEEKLY_GOAL (any day during week) and CUSTOM recurrence types
+- Implemented human-readable recurrence formatting (formatRecurrence)
 
 ## In progress
-- Finalizing verification of all system components
-- Preparing for visual/product redesign phase
-- Ensuring all edge cases handled (leap years, short months, etc.)
+- Finalizing verification of Repeat sheet/modal UI on desktop and mobile
+- Ensuring all edge cases handled for custom intervals (leap years, month boundaries)
+- Validating scoring behavior for Weekly Goal type (points awarded once per week)
+- Testing duplicate completion prevention across all recurrence types
 
 ## Next up
 - Visual/product redesign phase (UI/UX improvements)
@@ -44,5 +47,4 @@ flowchart TD
 - Deployment target (Vercel vs Fly.io) and CI/CD setup
 
 ## Known issues
-- Legacy interval/monthly tasks converted to closest 4-type during migration (documented in migration comments)
 - No UI for backfilling missed past occurrences (API accepts any date)

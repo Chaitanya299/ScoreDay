@@ -1,9 +1,10 @@
-// ScoreDay Recurrence Engine — simplified to 4 frequency types.
-//
-// DAILY         → every calendar day
-// SPECIFIC_DAYS → only on selected weekdays (Sun 0 .. Sat 6)
-// WEEKLY        → once per Mon-Sun week, any day
-// ONE_TIME      → single dueDate
+// ScoreDay Recurrence Engine — expanded to support custom intervals and weekly goals
+// 
+// NONE         → one-time task on dueDate
+// DAILY        → every calendar day (interval days)
+// WEEKLY       → specific weekdays (interval weeks)
+// WEEKLY_GOAL  → once per Mon-Sun week, any day (interval weeks)
+// CUSTOM       → flexible recurrence with interval/unit + constraints
 //
 // Deterministic, pure, client-safe. All date math via lib/dates.
 
@@ -15,18 +16,24 @@ import {
 } from './dates'
 
 export const RECURRENCE_TYPES = [
+  'NONE',
   'DAILY',
-  'SPECIFIC_DAYS',
   'WEEKLY',
-  'ONE_TIME',
+  'WEEKLY_GOAL',
+  'CUSTOM',
 ] as const
 
 export type RecurrenceType = (typeof RECURRENCE_TYPES)[number]
 
 export interface RecurrenceTask {
   recurrenceType: string
-  daysOfWeek?: string | null // "0,1,2,3,4,5,6" — 0=Sun..6=Sat (SPECIFIC_DAYS)
-  dueDate?: string | null // YYYY-MM-DD (ONE_TIME)
+  interval: number // default: 1
+  unit?: string // DAY | WEEK | MONTH
+  selectedWeekdays?: string // "0,1,2,3,4,5,6" — 0=Sun..6=Sat
+  dayOfMonth?: number // 1-31
+  dueDate?: string | null // YYYY-MM-DD (for NONE type)
+  startDate?: string // YYYY-MM-DD (when recurrence begins)
+  endDate?: string // YYYY-MM-DD (optional end date)
 }
 
 export type TaskStatus =
@@ -36,6 +43,7 @@ export type TaskStatus =
   | 'MISSED'
   | 'UPCOMING'
   | 'OVERDUE'
+  | 'SATISFIED' // for WEEKLY_GOAL when completed
 
 export interface StatusContext {
   todayIso: string
@@ -96,24 +104,69 @@ export function isPastDateString(iso: string, referenceIso?: string): boolean {
 // ---------------------------------------------------------------------------
 
 export function isTaskDueOnDate(task: RecurrenceTask, dateIso: string): boolean {
+  // Check if date is within start/end bounds
+  if (task.startDate && dateIso < task.startDate) return false
+  if (task.endDate && dateIso > task.endDate) return false
+
   switch (task.recurrenceType) {
-    case 'DAILY':
-      return true
-    case 'SPECIFIC_DAYS': {
-      const weekday = parseLocalDate(dateIso).getDay()
-      return parseDaysOfWeek(task.daysOfWeek).includes(weekday)
-    }
-    case 'WEEKLY':
-      return true
-    case 'ONE_TIME':
+    case 'NONE':
       return !!task.dueDate && task.dueDate === dateIso
+    case 'DAILY':
+      // Every interval days starting from startDate
+      if (!task.startDate) return false
+      const daysDiff = daysBetween(task.startDate, dateIso)
+      return daysDiff >= 0 && daysDiff % task.interval === 0
+    case 'WEEKLY':
+      // Every interval weeks on selected weekdays
+      if (!task.startDate) return false
+      const weeksDiff = weeksBetween(task.startDate, dateIso)
+      if (weeksDiff < 0 || weeksDiff % task.interval !== 0) return false
+      const weekday = parseLocalDate(dateIso).getDay()
+      return parseDaysOfWeek(task.selectedWeekdays).includes(weekday)
+    case 'WEEKLY_GOAL':
+      // Once per interval weeks, any day
+      if (!task.startDate) return false
+      const weeksDiff = weeksBetween(task.startDate, dateIso)
+      return weeksDiff >= 0 && weeksDiff % task.interval === 0
+    case 'CUSTOM':
+      if (!task.startDate) return false
+      switch (task.unit) {
+        case 'DAY':
+          const daysDiff = daysBetween(task.startDate, dateIso)
+          return daysDiff >= 0 && daysDiff % task.interval === 0
+        case 'WEEK': {
+          const weeksDiff = weeksBetween(task.startDate, dateIso)
+          if (weeksDiff < 0 || weeksDiff % task.interval !== 0) return false
+          const weekday = parseLocalDate(dateIso).getDay()
+          return parseDaysOfWeek(task.selectedWeekdays).includes(weekday)
+        }
+        case 'MONTH': {
+          // Check if it's the right day of month in the right interval
+          if (!task.dayOfMonth) return false
+          const monthsDiff = monthsBetween(task.startDate, dateIso)
+          if (monthsDiff < 0 || monthsDiff % task.interval !== 0) return false
+          
+          // Check if this month has the dayOfMonth
+          const date = parseLocalDate(dateIso)
+          const year = date.getFullYear()
+          const month = date.getMonth()
+          const lastDay = new Date(year, month + 1, 0).getDate()
+          const dayToCheck = Math.min(task.dayOfMonth, lastDay)
+          
+          return date.getDate() === dayToCheck
+        }
+        default:
+          return false
+      }
     default:
       return false
   }
 }
 
 export function getOccurrenceKey(task: RecurrenceTask, completionDateIso: string): string {
-  if (task.recurrenceType === 'WEEKLY') return getWeekStart(completionDateIso)
+  if (task.recurrenceType === 'WEEKLY' || task.recurrenceType === 'WEEKLY_GOAL') {
+    return getWeekStart(completionDateIso)
+  }
   return completionDateIso
 }
 
@@ -131,31 +184,120 @@ export function getOccurrencesForDateRange(
   rangeEndIso: string
 ): string[] {
   if (rangeEndIso < rangeStartIso) return []
-  if (task.recurrenceType === 'WEEKLY') {
-    const out: string[] = []
-    let cursor = rangeStartIso
-    while (cursor <= rangeEndIso) {
-      const ws = getWeekStart(cursor)
-      if (!out.includes(ws) && isTaskDueOnDate(task, ws)) out.push(ws)
-      cursor = addDaysLocal(ws, 7)
+  
+  // Adjust range to be within task bounds
+  let start = rangeStartIso
+  let end = rangeEndIso
+  
+  if (task.startDate && start < task.startDate) start = task.startDate
+  if (task.endDate && end > task.endDate) end = task.endDate
+  
+  if (start > end) return []
+
+  switch (task.recurrenceType) {
+    case 'NONE':
+      return isTaskDueOnDate(task, start) ? [start] : []
+    case 'DAILY': {
+      const out: string[] = []
+      let cursor = start
+      while (cursor <= end) {
+        if (isTaskDueOnDate(task, cursor)) out.push(cursor)
+        cursor = addDays(cursor, 1)
+      }
+      return out
     }
-    return out.filter((ws) => ws <= rangeEndIso || ws === getWeekStart(rangeEndIso))
+    case 'WEEKLY': {
+      const out: string[] = []
+      let cursor = start
+      while (cursor <= end) {
+        if (isTaskDueOnDate(task, cursor)) {
+          const ws = getWeekStart(cursor)
+          if (!out.includes(ws)) out.push(ws)
+        }
+        cursor = addDays(cursor, 1)
+      }
+      return out
+    }
+    case 'WEEKLY_GOAL': {
+      const out: string[] = []
+      let cursor = start
+      while (cursor <= end) {
+        if (isTaskDueOnDate(task, cursor)) {
+          const ws = getWeekStart(cursor)
+          if (!out.includes(ws)) out.push(ws)
+        }
+        cursor = addDays(cursor, 1)
+      }
+      return out
+    }
+    case 'CUSTOM': {
+      const out: string[] = []
+      let cursor = start
+      while (cursor <= end) {
+        if (isTaskDueOnDate(task, cursor)) out.push(cursor)
+        
+        // Increment based on unit
+        switch (task.unit) {
+          case 'DAY':
+            cursor = addDays(cursor, task.interval)
+            break
+          case 'WEEK':
+            cursor = addWeeks(cursor, task.interval)
+            break
+          case 'MONTH':
+            cursor = addMonths(cursor, task.interval)
+            break
+          default:
+            cursor = addDays(cursor, 1) // fallback
+        }
+      }
+      return out
+    }
+    default:
+      return []
   }
-  return eachDay(rangeStartIso, rangeEndIso).filter((d) => isTaskDueOnDate(task, d))
 }
 
-function addDaysLocal(iso: string, n: number): string {
+function addDays(iso: string, n: number): string {
   const d = parseLocalDate(iso)
   d.setDate(d.getDate() + n)
   return getLocalDateString(d)
 }
 
+function addWeeks(iso: string, n: number): string {
+  const d = parseLocalDate(iso)
+  d.setDate(d.getDate() + n * 7)
+  return getLocalDateString(d)
+}
+
+function addMonths(iso: string, n: number): string {
+  const d = parseLocalDate(iso)
+  d.setMonth(d.getMonth() + n)
+  return getLocalDateString(d)
+}
+
+function daysBetween(aIso: string, bIso: string): number {
+  const a = parseLocalDate(aIso)
+  const b = parseLocalDate(bIso)
+  return Math.round((b.getTime() - a.getTime()) / 86400000)
+}
+
+function weeksBetween(aIso: string, bIso: string): number {
+  return Math.round(daysBetween(getWeekStart(aIso), getWeekStart(bIso)) / 7)
+}
+
+function monthsBetween(aIso: string, bIso: string): number {
+  const a = parseLocalDate(aIso)
+  const b = parseLocalDate(bIso)
+  return (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth())
+}
+
 export function getNextOccurrence(task: RecurrenceTask, afterIso: string): string | null {
-  const horizon = addDaysLocal(afterIso, 366 * 5)
-  let cursor = addDaysLocal(afterIso, 1)
+  const horizon = addDays(afterIso, 366 * 5) // Look 5 years ahead
+  let cursor = addDays(afterIso, 1)
   while (cursor <= horizon) {
     if (isTaskDueOnDate(task, cursor)) return cursor
-    cursor = addDaysLocal(cursor, 1)
+    cursor = addDays(cursor, 1)
   }
   return null
 }
@@ -165,7 +307,7 @@ export function getPreviousOccurrence(task: RecurrenceTask, beforeIso: string): 
   let guard = 0
   while (cursor >= '0000-01-01' && guard < 366 * 5) {
     if (isTaskDueOnDate(task, cursor)) return cursor
-    cursor = addDaysLocal(cursor, -1)
+    cursor = addDays(cursor, -1)
     guard++
   }
   return null
@@ -183,7 +325,7 @@ export function getTaskStatus(
   const { todayIso, completedKeys } = ctx
   const completed = (key: string) => completedKeys?.has(key) ?? false
 
-  if (task.recurrenceType === 'ONE_TIME') {
+  if (task.recurrenceType === 'NONE') {
     const key = task.dueDate ?? ''
     if (completed(key)) return 'COMPLETED'
     if (!task.dueDate) return 'NOT_DUE'
@@ -196,6 +338,14 @@ export function getTaskStatus(
 
   const key = getOccurrenceKey(task, dateIso)
   if (completed(key)) return 'COMPLETED'
+
+  if (task.recurrenceType === 'WEEKLY_GOAL') {
+    const weekOfToday = getWeekStart(todayIso)
+    const weekOfDate = getWeekStart(dateIso)
+    if (weekOfDate > weekOfToday) return 'UPCOMING'
+    if (weekOfDate === weekOfToday) return 'SATISFIED' // Special status for weekly goal
+    return 'MISSED'
+  }
 
   if (task.recurrenceType === 'WEEKLY') {
     const weekOfToday = getWeekStart(todayIso)
@@ -234,16 +384,50 @@ function formatDaysLabel(daysOfWeek: string | null | undefined): string {
 
 export function formatRecurrence(task: RecurrenceTask): string {
   switch (task.recurrenceType) {
-    case 'DAILY':
-      return 'Every day'
-    case 'SPECIFIC_DAYS':
-      return formatDaysLabel(task.daysOfWeek)
-    case 'WEEKLY':
-      return 'Any day this week'
-    case 'ONE_TIME':
+    case 'NONE':
       return task.dueDate ? `Due ${formatDueDate(task.dueDate)}` : 'One time'
+    case 'DAILY':
+      return task.interval === 1 ? 'Every day' : `Every ${task.interval} days`
+    case 'WEEKLY':
+      if (task.interval === 1) {
+        return `Every week on ${formatDaysLabel(task.selectedWeekdays)}`
+      } else {
+        return `Every ${task.interval} weeks on ${formatDaysLabel(task.selectedWeekdays)}`
+      }
+    case 'WEEKLY_GOAL':
+      return 'Any day this week'
+    case 'CUSTOM':
+      switch (task.unit) {
+        case 'DAY':
+          return task.interval === 1 ? 'Every day' : `Every ${task.interval} days`
+        case 'WEEK':
+          if (task.interval === 1) {
+            return `Every week on ${formatDaysLabel(task.selectedWeekdays)}`
+          } else {
+            return `Every ${task.interval} weeks on ${formatDaysLabel(task.selectedWeekdays)}`
+          }
+        case 'MONTH':
+          if (task.interval === 1) {
+            return `Every month on the ${task.dayOfMonth}${getOrdinalSuffix(task.dayOfMonth)}`
+          } else {
+            return `Every ${task.interval} months on the ${task.dayOfMonth}${getOrdinalSuffix(task.dayOfMonth)}`
+          }
+        default:
+          return 'Custom'
+      }
     default:
       return 'Custom'
+  }
+}
+
+// Helper for ordinal suffix
+function getOrdinalSuffix(n: number): string {
+  if (n >= 11 && n <= 13) return 'th'
+  switch (n % 10) {
+    case 1: return 'st'
+    case 2: return 'nd'
+    case 3: return 'rd'
+    default: return 'th'
   }
 }
 

@@ -17,8 +17,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Workflow
 
-- Update `docs/STATE.md` before reporting a task complete.
-- After a real architectural decision is made in conversation, proactively offer to record it with `/orient-decide` — don't wait to be asked. It also updates `architecture.md`.
+- Before reporting a task complete: update `docs/STATE.md`, and if an architectural decision was made with no ADR recorded, offer to record it.
+- When a real architectural decision is made in conversation, proactively offer to record it with `/orient-decide` — don't wait to be asked. It also updates `architecture.md`.
+- When a plan is approved before a build, treat any architectural choices inside it as decisions — offer to record them before starting.
 - Never edit a past decision file. Supersede it with a new one.
 - Trace execution paths on demand with `/orient-trace` instead of maintaining a flow doc.
 <!-- ORIENT:END -->
