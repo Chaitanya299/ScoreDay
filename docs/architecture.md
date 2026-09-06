@@ -22,7 +22,8 @@ not a call graph, not a dependency inventory.
 - Dashboard scoring — `app/page.tsx` → `components/DashboardView` → `lib/scoring` → `lib/prisma`
 - Task creation — `components/tasks/TaskForm.tsx` → `app/api/tasks/route.ts` (POST) → `lib/taskValidation` → `prisma`
 - Completion recording — UI → `app/api/completions/route.ts` (POST) → `prisma` → `TaskCompletion`
-- Progress — `app/progress/page.tsx` → `components/ProgressView` → `lib/progress` + `lib/streaks` → `lib/prisma`; client navigation refetches via `app/api/progress/{month,week,day}`
+- Progress — `app/progress/page.tsx` → `components/ProgressView` → `lib/progress` + `lib/streaks` → `lib/prisma`; client navigation refetches via `app/api/progress/{month,week,day}`; task/category/missed sections are period-scoped to the active view
+- Completion undo — `DashboardView` (optimistic) → `DELETE /api/completions` → record deletion only, never point mutation
 - Day detail — calendar/chart day → `DayDetailModal` → `app/api/progress/day` → `getDayDetail`
 - Seed — `prisma/seed.ts` → `lib/prisma` → DB
 
@@ -41,5 +42,8 @@ not a call graph, not a dependency inventory.
 - WEEKLY_GOAL is one opportunity per Mon-Sun week: it never enters daily denominators, counts once in weekly totals, and shares the week's Monday occurrence key
 - Certain-days (WEEKLY) tasks complete per calendar date — each scheduled day is its own occurrence
 - Days with no scheduled tasks are "no data", never 0%
+- Missed = scheduled + passed + not completed; today's incomplete tasks are actionable, never missed
+- Performance sections sort weakest-first (task, category) with alphabetical tiebreaks
+- CI: install → generate → lint → unit → build → Playwright vs `next start`; E2E scoped to `tests/*.spec.ts`
 - Human-readable labels via formatRecurrence() — raw enum names never reach UI
 - No XP/levels/badges/leaderboards anywhere — product, code, and docs (see ADR-0007)

@@ -1,6 +1,13 @@
 import Header from '@/components/ui/Header'
 import ProgressView from '@/components/progress/ProgressView'
-import { getMonthlyProgress, getTrendComparison, getMonthRange } from '@/lib/progress'
+import {
+  getMonthlyProgress,
+  getTrendComparison,
+  getMonthRange,
+  getAllTaskPerformance,
+  getCategoryPerformance,
+  getMissedOccurrences,
+} from '@/lib/progress'
 import { getCurrentMonthIso } from '@/lib/progress'
 import { getStreakData } from '@/lib/streaks'
 
@@ -15,14 +22,18 @@ export default async function ProgressPage({
   const targetMonth = month || getCurrentMonthIso()
   const monthRange = getMonthRange(targetMonth)
 
-  const [monthlyProgress, trend, streaks] = await Promise.all([
-    getMonthlyProgress(targetMonth),
-    getTrendComparison({
-      start: targetMonth + '-01',
-      end: new Date(new Date(targetMonth + '-01').setMonth(new Date(targetMonth + '-01').getMonth() + 1) - 1).toISOString().slice(0, 10),
-    }),
-    getStreakData(monthRange.start, monthRange.end),
-  ])
+  const [monthlyProgress, trend, streaks, taskPerformance, categoryPerformance, missed] =
+    await Promise.all([
+      getMonthlyProgress(targetMonth),
+      getTrendComparison({
+        start: targetMonth + '-01',
+        end: new Date(new Date(targetMonth + '-01').setMonth(new Date(targetMonth + '-01').getMonth() + 1) - 1).toISOString().slice(0, 10),
+      }),
+      getStreakData(monthRange.start, monthRange.end),
+      getAllTaskPerformance(monthRange),
+      getCategoryPerformance(monthRange),
+      getMissedOccurrences(monthRange),
+    ])
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
@@ -35,6 +46,9 @@ export default async function ProgressPage({
             monthlyProgress,
             trend,
             streaks,
+            taskPerformance,
+            categoryPerformance,
+            missed,
           }}
         />
       </main>

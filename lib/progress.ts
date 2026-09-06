@@ -559,8 +559,11 @@ export async function getAllTaskPerformance(range: DateRange): Promise<TaskPerfo
     }
   }
 
-  // Sort by completion rate descending
-  return results.sort((a, b) => b.completionRate - a.completionRate)
+  // Sort weakest-first so tasks needing attention surface at the top,
+  // with a stable alphabetical tiebreak.
+  return results.sort(
+    (a, b) => a.completionRate - b.completionRate || a.title.localeCompare(b.title)
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -594,7 +597,9 @@ export async function getCategoryPerformance(range: DateRange): Promise<Category
 
   return Array.from(categoryMap.values())
     .filter(c => c.scheduledOccurrences > 0)
-    .sort((a, b) => b.completionRate - a.completionRate)
+    .sort(
+      (a, b) => a.completionRate - b.completionRate || a.category.localeCompare(b.category)
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -611,9 +616,15 @@ export async function getPointsBreakdown(range: DateRange): Promise<Array<{ cate
 // Missed Occurrences
 // ---------------------------------------------------------------------------
 
-export async function getMissedOccurrences(range: DateRange): Promise<MissedOccurrence[]> {
+export async function getMissedOccurrences(
+  range: DateRange,
+  todayIso?: string
+): Promise<MissedOccurrence[]> {
   const tasks = await getActiveTasks()
   const completions = await getCompletionsInRange(range)
+  // A missed occurrence must have fully passed: today's incomplete tasks are
+  // still actionable, never missed.
+  const today = todayIso ?? getLocalDateString()
 
   const completedKeys = new Set(completions.map(c => `${c.taskId}:${c.occurrenceDate}`))
   const missed: MissedOccurrence[] = []
@@ -627,8 +638,9 @@ export async function getMissedOccurrences(range: DateRange): Promise<MissedOccu
       // For completion checking, we need the occurrence key (week-start for WEEKLY)
       const occKey = getOccurrenceKey(rec, occ)
       const key = `${task.id}:${occKey}`
-      
+
       if (!completedKeys.has(key)) {
+        if (occ >= today) continue // Today/future is still actionable, not missed
         // For WEEKLY_GOAL, only count as missed if the week has ended
         if (task.recurrenceType === 'WEEKLY_GOAL') {
           const weekEnd = getWeekEnd(occ)

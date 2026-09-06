@@ -99,6 +99,53 @@ export default function DashboardView({ initialData }: DashboardProps) {
     }
   }
 
+  const handleUndo = async (taskId: string, points: number) => {
+    setLoadingTaskId(taskId)
+    setError(null)
+
+    // Optimistic update (mirror of handleComplete)
+    const earnedAfterUndo = (prev: number) => Math.max(0, prev - points)
+    setData((prev) => ({
+      ...prev,
+      earnedToday: earnedAfterUndo(prev.earnedToday),
+      dailyPercentage:
+        prev.maxDaily > 0 ? Math.min(100, Math.round((earnedAfterUndo(prev.earnedToday) / prev.maxDaily) * 100)) : 0,
+      weeklyEarned: earnedAfterUndo(prev.weeklyEarned),
+      weeklyPercentage:
+        prev.weeklyMax > 0
+          ? Math.min(100, Math.round((earnedAfterUndo(prev.weeklyEarned) / prev.weeklyMax) * 100))
+          : 0,
+      completedCount: Math.max(0, prev.completedCount - 1),
+      incompleteCount: prev.incompleteCount + 1,
+      taskList: prev.taskList.map((t) =>
+        t.id === taskId
+          ? { ...t, isCompleted: false, status: 'DUE', completedThisOccurrence: false }
+          : t
+      ),
+    }))
+
+    try {
+      const res = await fetch('/api/completions', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId, dateStr: data.targetDate }),
+      })
+      if (res.status === 404) {
+        // Already undone server-side: the optimistic DUE state is correct.
+        const body = await res.json().catch(() => null)
+        if (body?.alreadyUndone) return
+      }
+      if (!res.ok) {
+        throw new Error('Failed to undo completion')
+      }
+    } catch {
+      setError('Could not undo. Please refresh and try again.')
+      window.location.reload()
+    } finally {
+      setLoadingTaskId(null)
+    }
+  }
+
   return (
     <div className="space-y-8">
       {error && (
@@ -167,11 +214,21 @@ export default function DashboardView({ initialData }: DashboardProps) {
                     </div>
                   </div>
 
-                  <div className="shrink-0">
+                  <div className="shrink-0 flex items-center gap-2">
                     {task.status === 'COMPLETED' ? (
-                      <span className="inline-flex items-center text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                        {isWeeklyCompleted ? 'Completed this week' : '✓ Completed'}
-                      </span>
+                      <>
+                        <span className="inline-flex items-center text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                          {isWeeklyCompleted ? 'Completed this week' : '✓ Completed'}
+                        </span>
+                        <button
+                          onClick={() => handleUndo(task.id, task.points)}
+                          disabled={loadingTaskId === task.id}
+                          aria-label={`Undo completion of ${task.title}`}
+                          className="text-xs font-semibold px-4 py-2 min-h-[44px] bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          {loadingTaskId === task.id ? 'Undoing…' : 'Undo'}
+                        </button>
+                      </>
                     ) : task.status === 'OVERDUE' ? (
                       <button
                         onClick={() => handleComplete(task.id, task.points)}

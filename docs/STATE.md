@@ -1,10 +1,9 @@
 # STATE — <!-- updated: 2026-09-06 -->
 
 ## Current focus
-Sprint complete: ScoreDay is a coherent personal performance scoreboard.
-Today is for action, Progress is for reflection. Next: pick up the
-"Remaining limitations" list in the sprint report (task/category
-performance sections are service-ready but not yet rendered).
+Sprint 2 complete: performance dashboard finished (task/category/missed
+sections), completion undo shipped, CI added. Today is for action,
+Progress is for reflection.
 
 ## Shape
 ```mermaid
@@ -65,6 +64,24 @@ flowchart TD
 - 26 Playwright E2E tests passing (incl. day detail, week/month nav data
   reload, streak display, XP absence, mobile overflow)
 - Lint clean, build successful
+- **Sprint 2: performance sections + undo + CI (ADR-0008)**
+- Task/Category/Missed sections rendered on Progress, period-scoped to the
+  active week/month (server-aggregated, weakest-first + name tiebreak)
+- Missed clamped to fully-past occurrences (today is actionable, not missed)
+- Completion undo: DELETE /api/completions (record removal, never point
+  mutation; already-undone converges without error state) + optimistic Undo
+  button on Today with reload-rollback
+- Global keyboard focus-visible styling + prefers-reduced-motion guard
+- Today/Tasks verified zero-overflow at 390px
+- CI pipeline (install, generate, lint, unit, build, Playwright vs next
+  start) + playwright.config.ts scoping E2E to *.spec.ts
+- 98 unit tests passing (18 recurrence + 14 streaks + 13 performance +
+  41 progress + 12 completions)
+- 33 Playwright E2E tests passing (complete→undo→complete-again round trip
+  with score-delta check, net-zero DB impact; Escape dialog; future-week
+  empty missed state)
+- Lint clean, build successful
+- Not committed: local dev.db page churn from test runs (net-zero rows)
 
 ## In progress
 - Finalizing verification of Repeat sheet/modal UI on desktop and mobile

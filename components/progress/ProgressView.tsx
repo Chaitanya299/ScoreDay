@@ -73,6 +73,34 @@ interface StreakSummary {
   scheduledDays: number
 }
 
+interface TaskPerformanceItem {
+  taskId: string
+  title: string
+  category: string | null
+  points: number
+  recurrenceType: string
+  scheduledOccurrences: number
+  completedOccurrences: number
+  completionRate: number
+  pointsEarned: number
+}
+
+interface CategoryPerformanceItem {
+  category: string
+  scheduledOccurrences: number
+  completedOccurrences: number
+  completionRate: number
+  pointsEarned: number
+}
+
+interface MissedItem {
+  taskId: string
+  taskTitle: string
+  category: string | null
+  occurrenceDate: string
+  points: number
+}
+
 interface ProgressViewProps {
   initialData: {
     currentMonth: string
@@ -80,7 +108,26 @@ interface ProgressViewProps {
     monthlyProgress: MonthlyProgress
     trend: TrendData
     streaks: StreakSummary
+    taskPerformance: TaskPerformanceItem[]
+    categoryPerformance: CategoryPerformanceItem[]
+    missed: MissedItem[]
   }
+}
+
+function formatMissedDate(dateStr: string) {
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
+function barColor(percentage: number) {
+  if (percentage >= 81) return 'bg-emerald-500'
+  if (percentage >= 61) return 'bg-blue-500'
+  if (percentage >= 41) return 'bg-yellow-500'
+  if (percentage > 0) return 'bg-orange-500'
+  return 'bg-slate-300 dark:bg-slate-700'
 }
 
 interface DayDetailData {
@@ -283,6 +330,9 @@ export default function ProgressView({
   const [monthlyProgress, setMonthlyProgress] = useState(initialData.monthlyProgress)
   const [trend, setTrend] = useState(initialData.trend)
   const [streaks, setStreaks] = useState(initialData.streaks)
+  const [taskPerformance, setTaskPerformance] = useState(initialData.taskPerformance)
+  const [categoryPerformance, setCategoryPerformance] = useState(initialData.categoryPerformance)
+  const [missed, setMissed] = useState(initialData.missed)
   const [weekStart, setWeekStart] = useState(() => getWeekStart(getLocalDateString()))
   const [weeklyProgress, setWeeklyProgress] = useState<WeeklyProgress | null>(null)
   const [loadingPeriod, setLoadingPeriod] = useState(false)
@@ -308,6 +358,9 @@ export default function ProgressView({
         setMonthlyProgress(data.monthlyProgress)
         setTrend(data.trend)
         setStreaks(data.streaks)
+        setTaskPerformance(data.taskPerformance)
+        setCategoryPerformance(data.categoryPerformance)
+        setMissed(data.missed)
         setLoadingPeriod(false)
       })
       .catch(() => {
@@ -334,6 +387,9 @@ export default function ProgressView({
         if (cancelled) return
         setWeeklyProgress(data.weeklyProgress)
         setStreaks(data.streaks)
+        setTaskPerformance(data.taskPerformance)
+        setCategoryPerformance(data.categoryPerformance)
+        setMissed(data.missed)
         setLoadingPeriod(false)
       })
       .catch(() => {
@@ -729,6 +785,146 @@ export default function ProgressView({
             </p>
           </div>
         </div>
+      </div>
+
+      {/* Task Performance */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6">
+        <h2 className="text-lg font-bold mb-1">Task Performance</h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+          Weakest first · {view === 'week' ? 'this week' : formatMonth(currentMonth)}
+        </p>
+        {taskPerformance.length > 0 ? (
+          <ul className="space-y-3">
+            {taskPerformance.map((t) => {
+              const available = t.scheduledOccurrences * t.points
+              return (
+                <li
+                  key={t.taskId}
+                  className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-800"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="font-medium text-sm text-slate-900 dark:text-white truncate">
+                        {t.title}
+                      </span>
+                      <span className={`text-sm font-bold shrink-0 ${getScoreColor(t.completionRate)}`}>
+                        {t.completionRate}%
+                      </span>
+                    </div>
+                    <div
+                      className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 mt-2"
+                      role="progressbar"
+                      aria-valuenow={t.completionRate}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-label={`${t.title} completion rate`}
+                    >
+                      <div
+                        className={`h-1.5 rounded-full ${barColor(t.completionRate)}`}
+                        style={{ width: `${t.completionRate}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
+                      {t.completedOccurrences} of {t.scheduledOccurrences} completed
+                      {' · '}{t.pointsEarned}/{available} pts
+                      {t.category ? ` · ${t.category}` : ''}
+                    </p>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        ) : (
+          <p className="text-sm text-slate-500 dark:text-slate-400">No task performance data yet.</p>
+        )}
+      </div>
+
+      {/* Category Performance */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6">
+        <h2 className="text-lg font-bold mb-1">Category Performance</h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+          Weakest first · {view === 'week' ? 'this week' : formatMonth(currentMonth)}
+        </p>
+        {categoryPerformance.length > 0 ? (
+          <ul className="space-y-3">
+            {categoryPerformance.map((c) => (
+              <li
+                key={c.category}
+                className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-800"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="font-medium text-sm text-slate-900 dark:text-white truncate">
+                      {c.category}
+                    </span>
+                    <span className={`text-sm font-bold shrink-0 ${getScoreColor(c.completionRate)}`}>
+                      {c.completionRate}%
+                    </span>
+                  </div>
+                  <div
+                    className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 mt-2"
+                    role="progressbar"
+                    aria-valuenow={c.completionRate}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label={`${c.category} completion rate`}
+                  >
+                    <div
+                      className={`h-1.5 rounded-full ${barColor(c.completionRate)}`}
+                      style={{ width: `${c.completionRate}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
+                    {c.completedOccurrences} of {c.scheduledOccurrences} completed
+                    {' · '}{c.pointsEarned} pts earned
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-slate-500 dark:text-slate-400">No categorized tasks yet.</p>
+        )}
+      </div>
+
+      {/* Missed */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6">
+        <h2 className="text-lg font-bold mb-1">Missed</h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+          Scheduled, passed, not completed · {view === 'week' ? 'this week' : formatMonth(currentMonth)}
+        </p>
+        {missed.length > 0 ? (
+          <>
+            <ul className="space-y-2">
+              {missed.slice(0, 10).map((m) => (
+                <li
+                  key={`${m.taskId}:${m.occurrenceDate}`}
+                  className="flex items-center justify-between gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-800"
+                >
+                  <span className="min-w-0">
+                    <span className="block font-medium text-sm text-slate-700 dark:text-slate-300 truncate">
+                      {m.taskTitle}
+                    </span>
+                    <span className="block text-xs text-slate-500 dark:text-slate-400">
+                      {formatMissedDate(m.occurrenceDate)}
+                      {m.category ? ` · ${m.category}` : ''}
+                    </span>
+                  </span>
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0">
+                    {m.points} pts
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {missed.length > 10 && (
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-3">
+                +{missed.length - 10} more missed in this period
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="text-sm text-slate-500 dark:text-slate-400">No missed tasks in this period.</p>
+        )}
       </div>
 
       {/* Trend Indicator */}

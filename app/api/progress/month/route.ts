@@ -3,6 +3,9 @@ import {
   getMonthlyProgress,
   getTrendComparison,
   getMonthRange,
+  getAllTaskPerformance,
+  getCategoryPerformance,
+  getMissedOccurrences,
 } from '@/lib/progress'
 import { getStreakData } from '@/lib/streaks'
 
@@ -24,13 +27,24 @@ export async function GET(request: Request) {
     }
 
     const range = getMonthRange(month)
-    const [monthlyProgress, trend, streaks] = await Promise.all([
-      getMonthlyProgress(month),
-      getTrendComparison(range),
-      getStreakData(range.start, range.end),
-    ])
+    const [monthlyProgress, trend, streaks, taskPerformance, categoryPerformance, missed] =
+      await Promise.all([
+        getMonthlyProgress(month),
+        getTrendComparison(range),
+        getStreakData(range.start, range.end),
+        getAllTaskPerformance(range),
+        getCategoryPerformance(range),
+        getMissedOccurrences(range),
+      ])
 
-    return NextResponse.json({ monthlyProgress, trend, streaks })
+    return NextResponse.json({
+      monthlyProgress,
+      trend,
+      streaks,
+      taskPerformance,
+      categoryPerformance,
+      missed,
+    })
   } catch {
     return NextResponse.json({ error: 'Failed to load monthly progress' }, { status: 500 })
   }

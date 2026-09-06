@@ -184,6 +184,40 @@ test.describe('ScoreDay Progress Page', () => {
     await monthRequest
   })
 
+  test('shows task performance section', async ({ page }) => {
+    await page.goto('http://localhost:3000/progress')
+    await expect(page.locator('h2:has-text("Task Performance")')).toBeVisible()
+  })
+
+  test('shows category performance section', async ({ page }) => {
+    await page.goto('http://localhost:3000/progress')
+    await expect(page.locator('h2:has-text("Category Performance")')).toBeVisible()
+  })
+
+  test('shows missed section', async ({ page }) => {
+    await page.goto('http://localhost:3000/progress')
+    await expect(page.locator('h2:has-text("Missed")').first()).toBeVisible()
+  })
+
+  test('future week shows empty missed state', async ({ page }) => {
+    await page.goto('http://localhost:3000/progress')
+    await page.locator('button').filter({ hasText: 'Week' }).click()
+    await expect(page.locator('h2:has-text("Daily Breakdown")')).toBeVisible()
+    for (let i = 0; i < 4; i++) {
+      await page.locator('button[aria-label="Next week"]').click()
+    }
+    await expect(page.locator('text=No missed tasks in this period.')).toBeVisible()
+  })
+
+  test('Escape closes the day detail dialog', async ({ page }) => {
+    await page.goto('http://localhost:3000/progress')
+    await page.locator('button[aria-label^="View details for"]').first().click()
+    const dialog = page.locator('[role="dialog"]')
+    await expect(dialog).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(dialog).not.toBeVisible()
+  })
+
   test('mobile layout has no horizontal overflow', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('http://localhost:3000/progress')

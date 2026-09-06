@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server'
-import { getWeeklyProgress, getWeekRange } from '@/lib/progress'
+import {
+  getWeeklyProgress,
+  getWeekRange,
+  getAllTaskPerformance,
+  getCategoryPerformance,
+  getMissedOccurrences,
+} from '@/lib/progress'
 import { getStreakData } from '@/lib/streaks'
 
 /**
@@ -21,12 +27,22 @@ export async function GET(request: Request) {
     }
 
     const range = getWeekRange(weekStart)
-    const [weeklyProgress, streaks] = await Promise.all([
-      getWeeklyProgress(range.start),
-      getStreakData(range.start, range.end),
-    ])
+    const [weeklyProgress, streaks, taskPerformance, categoryPerformance, missed] =
+      await Promise.all([
+        getWeeklyProgress(range.start),
+        getStreakData(range.start, range.end),
+        getAllTaskPerformance(range),
+        getCategoryPerformance(range),
+        getMissedOccurrences(range),
+      ])
 
-    return NextResponse.json({ weeklyProgress, streaks })
+    return NextResponse.json({
+      weeklyProgress,
+      streaks,
+      taskPerformance,
+      categoryPerformance,
+      missed,
+    })
   } catch {
     return NextResponse.json({ error: 'Failed to load weekly progress' }, { status: 500 })
   }

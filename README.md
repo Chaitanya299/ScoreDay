@@ -27,10 +27,16 @@ History, and Trends.
   (+ SATISFIED for weekly goals) computed centrally per task+date.
 - Progress/History page (`/progress`): performance summary, score history,
   activity calendar, consistency (current/best streak, consistency %),
-  monthly trends, and a day-detail view for any date.
+  task performance (weakest first), category performance, missed
+  occurrences, monthly trends, and a day-detail view for any date. All
+  sections follow the active week/month period. Working week view with
+  Mon–Sun breakdown.
 - Consistency tracking (`lib/streaks.ts`): a streak day is a scheduled day
   finished at 100%. Days with no scheduled tasks are "no data" — they
   neither extend nor break streaks.
+- Completion workflow: optimistic Complete/Undo on Today. Undo
+  (`DELETE /api/completions`) removes the occurrence record — history is
+  never edited, only removed, and the occurrence becomes completable again.
 - Local-first storage with SQLite.
 
 ## Tech Stack

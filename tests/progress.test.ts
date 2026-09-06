@@ -358,11 +358,14 @@ describe('Progress Service - Core Calculations', () => {
   })
 
   describe('getAllTaskPerformance', () => {
-    it('returns all tasks with scheduled occurrences', async () => {
+    it('returns all tasks with scheduled occurrences, weakest first', async () => {
       const results = await getAllTaskPerformance({ start: '2026-08-24', end: '2026-08-30' })
       expect(results.length).toBe(5)
       for (let i = 1; i < results.length; i++) {
-        expect(results[i - 1].completionRate).toBeGreaterThanOrEqual(results[i].completionRate)
+        expect(results[i - 1].completionRate).toBeLessThanOrEqual(results[i].completionRate)
+        if (results[i - 1].completionRate === results[i].completionRate) {
+          expect(results[i - 1].title.localeCompare(results[i].title)).toBeLessThanOrEqual(0)
+        }
       }
     })
 
