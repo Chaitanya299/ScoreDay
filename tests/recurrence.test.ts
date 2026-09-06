@@ -15,7 +15,7 @@ import { getWeekStart, getWeekEnd } from '@/lib/dates'
 const D = (iso: string) => iso
 
 describe('DAILY', () => {
-  const task: RecurrenceTask = { recurrenceType: 'DAILY' }
+  const task: RecurrenceTask = { recurrenceType: 'DAILY', interval: 1 }
 
   it('is due every day', () => {
     for (const day of ['2026-08-24', '2026-08-25', '2026-08-30', '2026-09-01']) {
@@ -29,7 +29,7 @@ describe('DAILY', () => {
 })
 
 describe('SPECIFIC_DAYS (Mon/Wed/Fri)', () => {
-  const task: RecurrenceTask = { recurrenceType: 'SPECIFIC_DAYS', daysOfWeek: '1,3,5' }
+  const task: RecurrenceTask = { recurrenceType: 'SPECIFIC_DAYS', interval: 1, daysOfWeek: '1,3,5' }
 
   it('Monday -> due, Tuesday -> not due, Wednesday -> due, Thursday -> not due, Friday -> due', () => {
     expect(isTaskDueOnDate(task, D('2026-08-24'))).toBe(true) // Mon
@@ -42,7 +42,7 @@ describe('SPECIFIC_DAYS (Mon/Wed/Fri)', () => {
   })
 
   it('allows any combination of selected days (Sun + Sat)', () => {
-    const weekend: RecurrenceTask = { recurrenceType: 'SPECIFIC_DAYS', daysOfWeek: '0,6' }
+    const weekend: RecurrenceTask = { recurrenceType: 'SPECIFIC_DAYS', interval: 1, daysOfWeek: '0,6' }
     expect(isTaskDueOnDate(weekend, D('2026-08-29'))).toBe(true)
     expect(isTaskDueOnDate(weekend, D('2026-08-30'))).toBe(true)
     expect(isTaskDueOnDate(weekend, D('2026-08-28'))).toBe(false)
@@ -61,7 +61,7 @@ describe('SPECIFIC_DAYS (Mon/Wed/Fri)', () => {
 })
 
 describe('WEEKLY_GOAL (Any day this week)', () => {
-  const task: RecurrenceTask = { recurrenceType: 'WEEKLY_GOAL' }
+  const task: RecurrenceTask = { recurrenceType: 'WEEKLY_GOAL', interval: 1 }
 
   it('is available Monday, Wednesday and Sunday of the week', () => {
     expect(isTaskDueOnDate(task, D('2026-08-24'))).toBe(true) // Mon
@@ -105,7 +105,7 @@ describe('WEEKLY_GOAL (Any day this week)', () => {
 })
 
 describe('ONE_TIME', () => {
-  const task: RecurrenceTask = { recurrenceType: 'ONE_TIME', dueDate: '2026-08-29' }
+  const task: RecurrenceTask = { recurrenceType: 'ONE_TIME', interval: 1, dueDate: '2026-08-29' }
 
   it('due only on the due date; before -> upcoming; after -> not due', () => {
     expect(isTaskDueOnDate(task, D('2026-08-28'))).toBe(false)
@@ -137,7 +137,7 @@ describe('ONE_TIME', () => {
 })
 
 describe('getTaskStatus for scheduled types', () => {
-  const daily: RecurrenceTask = { recurrenceType: 'DAILY' }
+  const daily: RecurrenceTask = { recurrenceType: 'DAILY', interval: 1 }
 
   it('past uncompleted -> MISSED, today -> DUE, future -> UPCOMING', () => {
     expect(getTaskStatus(daily, D('2026-08-23'), { todayIso: '2026-08-24' })).toBe('MISSED')
@@ -157,7 +157,7 @@ describe('getTaskStatus for scheduled types', () => {
   })
 
   it('getNextOccurrence for SPECIFIC_DAYS skips non-selected days', () => {
-    const task: RecurrenceTask = { recurrenceType: 'SPECIFIC_DAYS', daysOfWeek: '1,3,5' }
+    const task: RecurrenceTask = { recurrenceType: 'SPECIFIC_DAYS', interval: 1, daysOfWeek: '1,3,5' }
     expect(getNextOccurrence(task, '2026-08-24')).toBe('2026-08-26') // Mon -> Wed
     expect(getNextOccurrence(task, '2026-08-25')).toBe('2026-08-26') // Tue -> Wed
   })

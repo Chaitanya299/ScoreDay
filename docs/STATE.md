@@ -1,9 +1,9 @@
 # STATE — <!-- updated: 2026-09-06 -->
 
 ## Current focus
-Sprint 2 complete: performance dashboard finished (task/category/missed
-sections), completion undo shipped, CI added. Today is for action,
-Progress is for reflection.
+Sprint 3 complete: production hardening done (tsc zero, hermetic CI with
+E2E, canonical seed, deployable SQLite config). ScoreDay is ready for
+first deployment on persistent-filesystem hosting.
 
 ## Shape
 ```mermaid
@@ -82,6 +82,17 @@ flowchart TD
   empty missed state)
 - Lint clean, build successful
 - Not committed: local dev.db page churn from test runs (net-zero rows)
+- **Sprint 3: production hardening (no scope expansion)**
+- tsc zero errors (fixed 8 pre-existing old-test mock type errors)
+- CI enforces install → generate → lint → tsc → unit → build → Playwright
+- dev.db untracked (runtime artifact); tracked scoring.ts.bak removed
+- Seed rewritten: canonical types + 14 days relative history; CI migrates
+  + seeds hermetically (verified: 33/33 E2E on fresh seeded DB and on
+  production server)
+- DATABASE_URL now honored (`env()` in schema; was hardcoded); absolute
+  paths required in production; relative env paths resolve CWD-relative
+- Dead deps pruned (lodash, pg, nanoid, zod — zero imports)
+- Deployment docs in README (VPS/Fly+volume recommended; serverless excluded)
 
 ## In progress
 - Finalizing verification of Repeat sheet/modal UI on desktop and mobile
@@ -96,7 +107,8 @@ flowchart TD
 - Add visual distinction for overdue tasks
 
 ## Blocked / needs research
-- Deployment target (Vercel vs Fly.io) and CI/CD setup
+- Exact deployment host selection (requirements documented in README;
+  any persistent-filesystem host works, serverless excluded)
 
 ## Known issues
 - No UI for backfilling missed past occurrences (API accepts any date)

@@ -71,6 +71,7 @@ const { mockTasks, mockCompletions } = vi.hoisted(() => {
       category: 'Home',
       points: 7,
       recurrenceType: 'NONE',
+      interval: 1,
       dueDate: '2026-08-29',
     },
   ]

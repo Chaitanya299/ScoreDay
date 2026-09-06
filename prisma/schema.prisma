@@ -1,6 +1,9 @@
 datasource db {
   provider = "sqlite"
-  url      = "file:./dev.db"
+  // Resolved from the environment so production can use an absolute path
+  // on persistent storage (e.g. file:/data/prod.db). Relative paths are
+  // resolved against the process working directory — always prefer absolute.
+  url      = env("DATABASE_URL")
 }
 
 generator client {

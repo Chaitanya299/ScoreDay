@@ -17,12 +17,17 @@ jobs:
       - run: npm ci
       - run: npx prisma generate
       - run: npm run lint
+      - run: npx tsc --noEmit
       - run: npm test
       - run: npm run build
 
   e2e:
     needs: verify
     runs-on: ubuntu-latest
+    env:
+      # Hermetic database: migrate + seed a fresh SQLite file. Never depends
+      # on any developer-local dev.db (which is untracked by design).
+      DATABASE_URL: file:./prisma/ci-test.db
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -31,6 +36,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      - run: npm run db:seed
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run start &

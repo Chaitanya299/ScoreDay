@@ -33,6 +33,17 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# local SQLite databases (runtime artifacts, never commit)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Playwright artifacts
+test-results/
+playwright-report/
+playwright/.cache
+
 # vercel
 .vercel
 

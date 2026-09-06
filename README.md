@@ -66,9 +66,17 @@ npx prisma migrate dev --name init
 ```
 
 ### 4. Seed Database
-Populate with sample tasks.
+Populate with sample tasks plus two weeks of relative history (destructive —
+it wipes tasks and completions first; intended for fresh dev/CI databases).
 ```bash
 npm run db:seed
+```
+
+### Testing
+```bash
+npm test              # vitest unit tests (recurrence, progress, streaks, performance, completions)
+npx playwright test   # E2E specs against a local server (Today flow, Progress, day detail, mobile)
+npx tsc --noEmit      # strict type check (CI-enforced)
 ```
 
 ### 5. Run Development Server
@@ -89,12 +97,16 @@ npm run start
 - `lib/`: Core business logic:
   - `recurrence.ts` — deterministic recurrence engine + status engine + formatters
   - `scoring.ts` — daily/weekly score calculations from occurrences
+  - `progress.ts` — historical performance (daily/weekly/monthly, task/category performance, missed, trends, day detail)
+  - `streaks.ts` — consistency (current/best streak, consistency rate)
   - `taskValidation.ts` — strict per-type input validation
-  - `levels.ts` — XP → level progression
   - `dates.ts` — local-calendar date utilities
   - `prisma.ts` — Prisma client singleton
-- `tests/` — vitest suite for the recurrence engine (`npm test`)
-- `prisma/`: Database schema and seed scripts.
+- `app/api/`: Route handlers — `tasks` (CRUD), `completions` (complete + undo), `progress/{day,week,month}` (analytics bundles)
+- `components/`: `dashboard/DashboardView`, `tasks/TaskForm`, `progress/ProgressView`, `ui/Header`
+- `tests/` — vitest unit tests by category (recurrence, scoring via progress fixtures, progress, streaks, performance, completions) plus Playwright E2E specs (`*.spec.ts`, `npm run` via `npx playwright test`)
+- `prisma/`: Database schema, migrations, and seed script.
+- `.github/workflows/ci.yml` — install → generate → lint → tsc → unit → build → Playwright vs production server
 
 ## Scripts
 - `npm run dev` — Start development server.
@@ -103,6 +115,33 @@ npm run start
 - `npm run db:migrate` — Apply database migrations.
 - `npm run db:seed` — Seed sample tasks.
 - `npm run db:studio` — Browse database records.
+
+## Deployment
+
+ScoreDay is a single-user app: Next.js 15 + Prisma + SQLite. SQLite needs a
+**persistent writable filesystem** — it is not compatible with read-only or
+ephemeral serverless runtimes (that would require migrating to Postgres,
+which is out of scope).
+
+Recommended: a small VPS or Fly.io with an attached volume.
+
+1. Required Node version: 22 LTS.
+2. Install: `npm ci`.
+3. Generate the client: `npx prisma generate`.
+4. Database: point `DATABASE_URL` at an **absolute** path on persistent
+   storage (e.g. `DATABASE_URL="file:/data/prod.db"`) and apply migrations
+   at boot: `npx prisma migrate deploy`. Relative `file:` paths in
+   `DATABASE_URL` resolve against the process working directory (verified),
+   so never rely on them in production. (The committed `.env.example` uses
+   `file:./prisma/dev.db`, which is correct when commands run from the
+   project root.)
+5. Build: `npm run build`. Start: `npm run start`.
+6. No other production environment variables are required. No secrets are
+   needed; do not commit `.env` files.
+
+Caveats: back up the SQLite file on your own schedule; run exactly one app
+instance per database file (no shared/concurrent writers beyond a single
+Node process). `dev.db` is a local artifact and is not tracked in Git.
 
 ## Troubleshooting
 

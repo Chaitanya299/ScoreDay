@@ -44,6 +44,8 @@ not a call graph, not a dependency inventory.
 - Days with no scheduled tasks are "no data", never 0%
 - Missed = scheduled + passed + not completed; today's incomplete tasks are actionable, never missed
 - Performance sections sort weakest-first (task, category) with alphabetical tiebreaks
-- CI: install → generate → lint → unit → build → Playwright vs `next start`; E2E scoped to `tests/*.spec.ts`
+- CI: install → generate → lint → tsc → unit → build → Playwright vs `next start`; E2E scoped to `tests/*.spec.ts`; e2e job migrates + seeds a hermetic SQLite file
+- SQLite: datasource honors `DATABASE_URL` (`env()`); relative `file:` paths resolve CWD-relative — production must use absolute paths on persistent storage; `dev.db` is an untracked local artifact, never committed
+- Seed (`prisma/seed.ts`) is wipe-first and date-relative: dev/CI use only, never production
 - Human-readable labels via formatRecurrence() — raw enum names never reach UI
 - No XP/levels/badges/leaderboards anywhere — product, code, and docs (see ADR-0007)
