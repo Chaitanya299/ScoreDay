@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getLocalDateString } from '@/lib/dates'
-import { getOccurrenceKey, isTaskDueOnDate } from '@/lib/recurrence'
+import { getOccurrenceKey, isTaskDueOnDate, type RecurrenceTask } from '@/lib/recurrence'
 
 /**
  * Complete a task.
@@ -36,7 +36,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Task is inactive' }, { status: 400 })
     }
 
-    const occurrenceDate = getOccurrenceKey(task, completionDate)
+    const recTask: RecurrenceTask = task as RecurrenceTask
+    const occurrenceDate = getOccurrenceKey(recTask, completionDate)
 
     const existing = await prisma.taskCompletion.findUnique({
       where: { taskId_occurrenceDate: { taskId, occurrenceDate } },
@@ -62,7 +63,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       completion,
-      offSchedule: !isTaskDueOnDate(task, completionDate),
+      offSchedule: !isTaskDueOnDate(recTask, completionDate),
     })
   } catch {
     return NextResponse.json({ error: 'Failed to complete task' }, { status: 500 })

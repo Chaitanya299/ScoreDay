@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   LineChart,
   Line,
@@ -13,7 +13,10 @@ import {
 import {
   getPreviousMonth,
   getNextMonth,
+  getPreviousWeek,
+  getNextWeek,
 } from '@/lib/progress'
+import { getWeekStart, getLocalDateString } from '@/lib/dates'
 
 interface DailyScore {
   date: string
@@ -35,6 +38,15 @@ interface MonthlyProgress {
   dailyScores: DailyScore[]
 }
 
+interface WeeklyProgress {
+  weekStart: string
+  weekEnd: string
+  earned: number
+  max: number
+  percentage: number
+  dailyBreakdown: DailyScore[]
+}
+
 interface TrendData {
   current: {
     averageScore: number
@@ -53,13 +65,210 @@ interface TrendData {
   pointsChange: number | null
 }
 
+interface StreakSummary {
+  currentStreak: number
+  bestStreak: number
+  consistencyRate: number
+  successfulDays: number
+  scheduledDays: number
+}
+
 interface ProgressViewProps {
   initialData: {
     currentMonth: string
     view: 'week' | 'month'
     monthlyProgress: MonthlyProgress
     trend: TrendData
+    streaks: StreakSummary
   }
+}
+
+interface DayDetailData {
+  date: string
+  percentage: number
+  earned: number
+  max: number
+  completedTasks: Array<{ taskId: string; title: string; category: string | null; pointsEarned: number }>
+  missedTasks: Array<{ taskId: string; title: string; category: string | null; points: number }>
+}
+
+function formatDayTitle(dateStr: string) {
+  const d = new Date(dateStr + 'T00:00:00')
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+}
+
+function getScoreColor(percentage: number) {
+  if (percentage >= 81) return 'text-emerald-500'
+  if (percentage >= 61) return 'text-blue-500'
+  if (percentage >= 41) return 'text-yellow-500'
+  if (percentage > 0) return 'text-orange-500'
+  return 'text-slate-400'
+}
+
+function getCalendarColor(percentage: number | null) {
+  if (percentage === null) return 'bg-slate-100 dark:bg-slate-800'
+  if (percentage >= 81) return 'bg-emerald-500'
+  if (percentage >= 61) return 'bg-blue-500'
+  if (percentage >= 41) return 'bg-yellow-500'
+  if (percentage > 0) return 'bg-orange-500'
+  return 'bg-slate-200 dark:bg-slate-700'
+}
+
+function DayDetailModal({ date, onClose }: { date: string; onClose: () => void }) {
+  const [detail, setDetail] = useState<DayDetailData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    fetch(`/api/progress/day?date=${date}`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to load')
+        return res.json()
+      })
+      .then((data: DayDetailData) => {
+        if (!cancelled) {
+          setDetail(data)
+          setLoading(false)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setError('Could not load details for this day. Please try again.')
+          setLoading(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [date])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Details for ${formatDayTitle(date)}`}
+        className="relative bg-white dark:bg-slate-900 rounded-xl p-6 w-full max-w-md shadow-2xl max-h-[85vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          aria-label="Close day details"
+          className="absolute top-4 right-4 min-w-[44px] min-h-[44px] flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-slate-600 text-2xl"
+        >
+          &times;
+        </button>
+
+        <h2 className="text-xl font-bold mb-1 pr-10">{formatDayTitle(date)}</h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Daily performance</p>
+
+        {loading && (
+          <div className="py-10 text-center text-slate-500" aria-live="polite">
+            Loading day detail…
+          </div>
+        )}
+
+        {error && !loading && (
+          <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-xl p-4 text-sm">
+            {error}
+          </div>
+        )}
+
+        {detail && !loading && (
+          <>
+            <div className="mb-6 flex items-end gap-3">
+              <p className={`text-5xl font-black ${getScoreColor(detail.percentage)}`}>
+                {detail.percentage}%
+              </p>
+              <p className="text-sm text-slate-500 dark:text-slate-400 pb-2">
+                {detail.earned} / {detail.max} points
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                  Completed ({detail.completedTasks.length})
+                </h3>
+                {detail.completedTasks.length > 0 ? (
+                  <ul className="space-y-2">
+                    {detail.completedTasks.map((t) => (
+                      <li
+                        key={t.taskId}
+                        className="flex items-center justify-between gap-3 p-3 rounded-xl border bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900"
+                      >
+                        <span className="min-w-0">
+                          <span className="block font-medium text-sm text-slate-900 dark:text-white truncate">
+                            ✓ {t.title}
+                          </span>
+                          {t.category && (
+                            <span className="block text-xs text-slate-500 dark:text-slate-400">
+                              {t.category}
+                            </span>
+                          )}
+                        </span>
+                        <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 shrink-0">
+                          +{t.pointsEarned}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Nothing completed this day.</p>
+                )}
+              </div>
+
+              {detail.missedTasks.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                    Missed ({detail.missedTasks.length})
+                  </h3>
+                  <ul className="space-y-2">
+                    {detail.missedTasks.map((t) => (
+                      <li
+                        key={t.taskId}
+                        className="flex items-center justify-between gap-3 p-3 rounded-xl border bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900"
+                      >
+                        <span className="min-w-0">
+                          <span className="block font-medium text-sm text-slate-600 dark:text-slate-400 truncate">
+                            ○ {t.title}
+                          </span>
+                          {t.category && (
+                            <span className="block text-xs text-slate-500 dark:text-slate-400">
+                              {t.category}
+                            </span>
+                          )}
+                        </span>
+                        <span className="text-xs font-semibold text-red-600 dark:text-red-400 shrink-0">
+                          {t.points} pts
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
 }
 
 export default function ProgressView({
@@ -67,6 +276,75 @@ export default function ProgressView({
 }: ProgressViewProps) {
   const [currentMonth, setCurrentMonth] = useState(initialData.currentMonth)
   const [view, setView] = useState<'week' | 'month'>(initialData.view)
+  const [showDayDetail, setShowDayDetail] = useState(false)
+  const [selectedDay, setSelectedDay] = useState<string | null>(null)
+
+  // Period data: server-rendered first paint, refetched client-side on navigation.
+  const [monthlyProgress, setMonthlyProgress] = useState(initialData.monthlyProgress)
+  const [trend, setTrend] = useState(initialData.trend)
+  const [streaks, setStreaks] = useState(initialData.streaks)
+  const [weekStart, setWeekStart] = useState(() => getWeekStart(getLocalDateString()))
+  const [weeklyProgress, setWeeklyProgress] = useState<WeeklyProgress | null>(null)
+  const [loadingPeriod, setLoadingPeriod] = useState(false)
+  const [periodError, setPeriodError] = useState<string | null>(null)
+  const firstMonthRender = useRef(true)
+
+  useEffect(() => {
+    if (view !== 'month') return
+    if (firstMonthRender.current) {
+      firstMonthRender.current = false
+      return
+    }
+    let cancelled = false
+    setLoadingPeriod(true)
+    setPeriodError(null)
+    fetch(`/api/progress/month?month=${currentMonth}`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to load')
+        return res.json()
+      })
+      .then((data) => {
+        if (cancelled) return
+        setMonthlyProgress(data.monthlyProgress)
+        setTrend(data.trend)
+        setStreaks(data.streaks)
+        setLoadingPeriod(false)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setPeriodError('Could not load this month. Please try again.')
+        setLoadingPeriod(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [currentMonth, view])
+
+  useEffect(() => {
+    if (view !== 'week') return
+    let cancelled = false
+    setLoadingPeriod(true)
+    setPeriodError(null)
+    fetch(`/api/progress/week?weekStart=${weekStart}`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to load')
+        return res.json()
+      })
+      .then((data) => {
+        if (cancelled) return
+        setWeeklyProgress(data.weeklyProgress)
+        setStreaks(data.streaks)
+        setLoadingPeriod(false)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setPeriodError('Could not load this week. Please try again.')
+        setLoadingPeriod(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [view, weekStart])
 
   const goToPreviousMonth = () => {
     setCurrentMonth(getPreviousMonth(currentMonth))
@@ -82,11 +360,22 @@ export default function ProgressView({
     return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
   }
 
+  const formatWeekRange = (startIso: string) => {
+    const start = new Date(startIso + 'T00:00:00')
+    const end = new Date(start)
+    end.setDate(end.getDate() + 6)
+    const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }
+    return `${start.toLocaleDateString('en-US', opts)} – ${end.toLocaleDateString('en-US', opts)}`
+  }
+
   const handleViewChange = (newView: 'week' | 'month') => {
     setView(newView)
   }
 
-  const { monthlyProgress, trend } = initialData
+  const openDayDetail = (dateStr: string) => {
+    setSelectedDay(dateStr)
+    setShowDayDetail(true)
+  }
 
   // Format data for chart
   const chartData = monthlyProgress.dailyScores
@@ -98,29 +387,12 @@ export default function ProgressView({
       max: d.max,
     }))
 
-  const getScoreColor = (percentage: number) => {
-    if (percentage >= 81) return 'text-emerald-500'
-    if (percentage >= 61) return 'text-blue-500'
-    if (percentage >= 41) return 'text-yellow-500'
-    if (percentage > 0) return 'text-orange-500'
-    return 'text-slate-400'
-  }
-
-  const getCalendarColor = (percentage: number | null) => {
-    if (percentage === null) return 'bg-slate-100 dark:bg-slate-800'
-    if (percentage >= 81) return 'bg-emerald-500'
-    if (percentage >= 61) return 'bg-blue-500'
-    if (percentage >= 41) return 'bg-yellow-500'
-    if (percentage > 0) return 'bg-orange-500'
-    return 'bg-slate-200 dark:bg-slate-700'
-  }
-
   return (
     <div className="space-y-6">
       {/* Period Selector */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">Progress</h1>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
           {/* Week/Month Toggle */}
           <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
             <button
@@ -148,17 +420,19 @@ export default function ProgressView({
           {/* Prev/Next Navigation */}
           <div className="flex items-center gap-2">
             <button
-              onClick={goToPreviousMonth}
-              className="px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+              onClick={() => (view === 'week' ? setWeekStart(getPreviousWeek(weekStart)) : goToPreviousMonth())}
+              aria-label={view === 'week' ? 'Previous week' : 'Previous month'}
+              className="px-3 py-2 min-w-[44px] min-h-[44px] text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
             >
               &lt;
             </button>
-            <span className="text-sm font-medium min-w-[140px] text-center">
-              {formatMonth(currentMonth)}
+            <span className="text-sm font-medium min-w-[110px] sm:min-w-[140px] text-center">
+              {view === 'week' ? formatWeekRange(weekStart) : formatMonth(currentMonth)}
             </span>
             <button
-              onClick={goToNextMonth}
-              className="px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+              onClick={() => (view === 'week' ? setWeekStart(getNextWeek(weekStart)) : goToNextMonth())}
+              aria-label={view === 'week' ? 'Next week' : 'Next month'}
+              className="px-3 py-2 min-w-[44px] min-h-[44px] text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
             >
               &gt;
             </button>
@@ -166,7 +440,85 @@ export default function ProgressView({
         </div>
       </div>
 
+      {/* Period loading / error states */}
+      {loadingPeriod && (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 text-center text-slate-500" aria-live="polite">
+          Loading…
+        </div>
+      )}
+      {periodError && !loadingPeriod && (
+        <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-xl p-4 text-sm">
+          {periodError}
+        </div>
+      )}
+
+      {/* Week View */}
+      {view === 'week' && (
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  This Week
+                </span>
+                {weeklyProgress ? (
+                  <div className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
+                    {weeklyProgress.earned}{' '}
+                    <span className="text-base font-normal text-slate-400">/ {weeklyProgress.max}</span>
+                  </div>
+                ) : (
+                  !loadingPeriod && <p className="text-sm text-slate-500 mt-1">No data for this week yet.</p>
+                )}
+              </div>
+              {weeklyProgress && (
+                <div className={`text-2xl font-extrabold ${getScoreColor(weeklyProgress.percentage)}`}>
+                  {weeklyProgress.percentage}%
+                </div>
+              )}
+            </div>
+          </div>
+
+          {weeklyProgress && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6">
+              <h2 className="text-lg font-bold mb-4">Daily Breakdown</h2>
+              <div className="grid grid-cols-7 gap-2 text-center">
+                {weeklyProgress.dailyBreakdown.map((day) => {
+                  const label = new Date(day.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()
+                  const isFuture = day.date > getLocalDateString()
+                  return (
+                    <button
+                      key={day.date}
+                      type="button"
+                      onClick={() => openDayDetail(day.date)}
+                      aria-label={`View details for ${day.date}`}
+                      className={`p-2 rounded-lg border min-h-[44px] transition-colors ${
+                        isFuture
+                          ? 'bg-transparent border-dashed border-slate-200 dark:border-slate-800'
+                          : day.hasScheduledTasks && day.percentage >= 100
+                            ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900'
+                            : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800'
+                      }`}
+                    >
+                      <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</div>
+                      <div className="text-sm font-bold text-slate-800 dark:text-slate-200 mt-1">
+                        {!isFuture && day.hasScheduledTasks ? `${day.percentage}%` : '–'}
+                      </div>
+                      {!isFuture && day.hasScheduledTasks && (
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400">
+                          {day.earned}/{day.max}
+                        </div>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Summary Cards */}
+      {view === 'month' && (
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Average Score */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
@@ -220,8 +572,10 @@ export default function ProgressView({
           </p>
         </div>
       </div>
+      )}
 
       {/* Score History Chart */}
+      {view === 'month' && (
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6">
         <h2 className="text-lg font-bold mb-4">Score History</h2>
         {chartData.length > 0 ? (
@@ -276,8 +630,10 @@ export default function ProgressView({
           </div>
         )}
       </div>
+      )}
 
       {/* Activity Calendar */}
+      {view === 'month' && (
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6">
         <h2 className="text-lg font-bold mb-4">Activity Calendar</h2>
         <div className="grid grid-cols-7 gap-2">
@@ -290,9 +646,12 @@ export default function ProgressView({
             </div>
           ))}
           {monthlyProgress.dailyScores.map((day) => (
-            <div
+            <button
               key={day.date}
-              className={`aspect-square rounded-lg flex flex-col items-center justify-center text-xs cursor-pointer hover:opacity-80 transition-opacity ${getCalendarColor(
+              type="button"
+              onClick={() => openDayDetail(day.date)}
+              aria-label={`View details for ${day.date}: ${day.hasScheduledTasks ? `${day.percentage}%` : 'no scheduled tasks'}`}
+              className={`aspect-square rounded-lg flex flex-col items-center justify-center text-xs cursor-pointer hover:opacity-80 transition-opacity min-h-[44px] ${getCalendarColor(
                 day.hasScheduledTasks ? day.percentage : null
               )}`}
               title={`${day.date}: ${day.percentage}%`}
@@ -305,7 +664,7 @@ export default function ProgressView({
                   {day.percentage}%
                 </span>
               )}
-            </div>
+            </button>
           ))}
         </div>
         <div className="flex items-center justify-center gap-4 mt-4 text-xs text-slate-500">
@@ -331,9 +690,49 @@ export default function ProgressView({
           </span>
         </div>
       </div>
+      )}
+
+      {/* Consistency */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6">
+        <h2 className="text-lg font-bold mb-1">Consistency</h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+          Perfect-score days this period · a day counts when every scheduled task is done
+        </p>
+        <div className="grid grid-cols-3 gap-4">
+          <div className="text-center">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Current Streak
+            </p>
+            <p className="text-3xl font-black text-indigo-600 dark:text-indigo-400 mt-2">
+              {streaks.currentStreak}
+              <span className="text-sm font-medium text-slate-400"> {streaks.currentStreak === 1 ? 'day' : 'days'}</span>
+            </p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Best Streak
+            </p>
+            <p className="text-3xl font-black mt-2">
+              {streaks.bestStreak}
+              <span className="text-sm font-medium text-slate-400"> {streaks.bestStreak === 1 ? 'day' : 'days'}</span>
+            </p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Consistency
+            </p>
+            <p className={`text-3xl font-black mt-2 ${getScoreColor(streaks.consistencyRate)}`}>
+              {streaks.consistencyRate}%
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              {streaks.successfulDays} of {streaks.scheduledDays} days perfect
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* Trend Indicator */}
-      {trend.previous && (
+      {view === 'month' && trend.previous && (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6">
           <h2 className="text-lg font-bold mb-4">Monthly Trend</h2>
           <div className="grid grid-cols-3 gap-4">
@@ -426,6 +825,17 @@ export default function ProgressView({
             Complete your first task to begin tracking your progress
           </p>
         </div>
+      )}
+
+      {/* Day Detail Modal */}
+      {showDayDetail && selectedDay && (
+        <DayDetailModal
+          date={selectedDay}
+          onClose={() => {
+            setShowDayDetail(false)
+            setSelectedDay(null)
+          }}
+        />
       )}
     </div>
   )

@@ -9,6 +9,7 @@ import {
   addDays,
   eachDay,
   getDaysOfWeek,
+  isValidDateString,
 } from './dates'
 import {
   isTaskDueOnDate,
@@ -26,12 +27,12 @@ function getDayOccurrencesForDateRange(
   rangeEndIso: string
 ): string[] {
   if (rangeEndIso < rangeStartIso) return []
-  
+
   let start = rangeStartIso
   let end = rangeEndIso
-  
-  if (task.startDate && start < task.startDate) start = task.startDate
-  if (task.endDate && end > task.endDate) end = task.endDate
+
+  if (isValidDateString(task.startDate) && start < task.startDate) start = task.startDate
+  if (isValidDateString(task.endDate) && end > task.endDate) end = task.endDate
   
   if (start > end) return []
 
@@ -47,6 +48,24 @@ function getDayOccurrencesForDateRange(
     cursor = addDays(cursor, 1)
   }
   return out
+}
+
+// A WEEKLY_GOAL is one opportunity per Mon-Sun week. It contributes its
+// points to a range total once for every week overlapping both the range and
+// the task's own [startDate, endDate] bounds — never to daily denominators.
+function goalPointsForWeek(
+  tasks: Array<{ recurrenceType: string; points: number; startDate?: string | null; endDate?: string | null }>,
+  weekStartIso: string,
+  weekEndIso: string
+): number {
+  let points = 0
+  for (const task of tasks) {
+    if (task.recurrenceType !== 'WEEKLY_GOAL') continue
+    if (task.startDate && task.startDate > weekEndIso) continue
+    if (task.endDate && task.endDate < weekStartIso) continue
+    points += task.points
+  }
+  return points
 }
 
 // ---------------------------------------------------------------------------
@@ -253,13 +272,11 @@ export async function getDailyProgress(dateStr: string): Promise<DailyProgress> 
   for (const task of tasks) {
     const rec: RecurrenceTask = task
     if (isTaskDueOnDate(rec, dateStr)) {
-      // For WEEKLY_GOAL, only count once per week (on the week's Monday)
-      if (task.recurrenceType === 'WEEKLY_GOAL') {
-        const weekStart = getWeekStart(dateStr)
-        if (dateStr === weekStart) {
-          max += task.points
-        }
-      } else {
+      // WEEKLY_GOAL is one opportunity per Mon-Sun week: it never appears in
+      // a daily denominator (not even on Monday). Its points count toward
+      // weekly totals once per week (see getWeeklyProgress) and toward
+      // earned on whichever day it is completed.
+      if (task.recurrenceType !== 'WEEKLY_GOAL') {
         max += task.points
       }
     }
@@ -287,25 +304,19 @@ export async function getWeeklyProgress(weekStart: string): Promise<WeeklyProgre
   // Weekly earned from completions
   const weeklyEarned = completions.reduce((acc, c) => acc + c.pointsEarned, 0)
 
-  // Weekly max: sum points for each scheduled day in the week
-  // Use day-by-day iteration to correctly count WEEKLY task occurrences per selected day
+  // Weekly max: sum points for each scheduled day in the week.
+  // Use day-by-day iteration to correctly count WEEKLY task occurrences per selected day.
+  // WEEKLY_GOAL never appears in daily denominators; it is added once below.
   let weeklyMax = 0
   for (const date of eachDay(start, end)) {
     for (const task of tasks) {
       const rec: RecurrenceTask = task
-      if (isTaskDueOnDate(rec, date)) {
-        // For WEEKLY_GOAL, only count once per week (on the week's Monday)
-        if (task.recurrenceType === 'WEEKLY_GOAL') {
-          const weekStart = getWeekStart(date)
-          if (date === weekStart) {
-            weeklyMax += task.points
-          }
-        } else {
-          weeklyMax += task.points
-        }
+      if (task.recurrenceType !== 'WEEKLY_GOAL' && isTaskDueOnDate(rec, date)) {
+        weeklyMax += task.points
       }
     }
   }
+  weeklyMax += goalPointsForWeek(tasks, start, end)
 
   const weeklyPercentage = weeklyMax > 0 ? Math.min(100, Math.round((weeklyEarned / weeklyMax) * 100)) : 0
 
@@ -361,16 +372,15 @@ export async function getMonthlyProgress(monthIso: string): Promise<MonthlyProgr
     for (const task of tasks) {
       const rec: RecurrenceTask = task
       if (isTaskDueOnDate(rec, date)) {
-        totalScheduledOccurrences++
+        // WEEKLY_GOAL is one opportunity per week: it counts as a scheduled
+        // occurrence once (on the week's Monday) and never enters daily max.
+        const isGoal = task.recurrenceType === 'WEEKLY_GOAL'
+        const weekStart = getWeekStart(date)
+        if (!isGoal || date === weekStart) {
+          totalScheduledOccurrences++
+        }
 
-        // For WEEKLY_GOAL, only count once per week (on the week's Monday)
-        if (task.recurrenceType === 'WEEKLY_GOAL') {
-          const weekStart = getWeekStart(date)
-          if (date === weekStart) {
-            dayMax += task.points
-            totalMax += task.points
-          }
-        } else {
+        if (!isGoal) {
           dayMax += task.points
           totalMax += task.points
         }
@@ -406,6 +416,16 @@ export async function getMonthlyProgress(monthIso: string): Promise<MonthlyProgr
       if (bestDay === null || percentage > bestDay.percentage) {
         bestDay = { date, percentage }
       }
+    }
+  }
+
+  // WEEKLY_GOAL contributes once per week overlapping the month (it never
+  // appears in daily denominators above).
+  {
+    let weekCursor = getWeekStart(start)
+    while (weekCursor <= end) {
+      totalMax += goalPointsForWeek(tasks, weekCursor, getWeekEnd(weekCursor))
+      weekCursor = addDays(weekCursor, 7)
     }
   }
 
@@ -496,17 +516,16 @@ export async function getTaskPerformance(taskId: string, range: DateRange): Prom
 
   const rec: RecurrenceTask = task as RecurrenceTask
 
-  // Get scheduled occurrences by iterating day by day (correctly counts WEEKLY per selected day)
+  // Get scheduled occurrences by iterating day by day (correctly counts WEEKLY per selected day).
+  // These doubles as the completion keys: calendar dates for every type
+  // except WEEKLY_GOAL, whose completions share the week's Monday key.
   const dayOccurrences = getDayOccurrencesForDateRange(rec, range.start, range.end)
   const scheduledOccurrences = dayOccurrences.length
-
-  // For completion checking, we need the occurrence keys (week-start for WEEKLY)
-  const occurrenceKeys = getOccurrencesForDateRange(rec, range.start, range.end)
 
   const completions = await prisma.taskCompletion.findMany({
     where: {
       taskId,
-      occurrenceDate: { in: occurrenceKeys },
+      occurrenceDate: { in: dayOccurrences },
     },
   })
 
@@ -665,14 +684,13 @@ export async function getProgressSummary(range: DateRange): Promise<ProgressSumm
     for (const task of tasks) {
       const rec: RecurrenceTask = task
       if (isTaskDueOnDate(rec, date)) {
-        // For WEEKLY_GOAL, only count as a scheduled occurrence on the week start day
+        // WEEKLY_GOAL is one opportunity per week: it counts as a scheduled
+        // occurrence once (on the week's Monday) and never enters daily max.
         if (task.recurrenceType === 'WEEKLY_GOAL') {
           const weekStart = getWeekStart(date)
           if (date === weekStart) {
             totalScheduledOccurrences++
-            dayMax += task.points
           } else {
-            // WEEKLY_GOAL is due every day but only counts once per week
             // Don't count as scheduled occurrence on other days
             continue
           }
@@ -812,13 +830,12 @@ export async function getDayDetail(dateStr: string): Promise<DayDetail> {
   for (const task of tasks) {
     const rec: RecurrenceTask = task
     if (isTaskDueOnDate(rec, dateStr)) {
-      // For WEEKLY_GOAL, only count once per week (on the week's Monday)
-      if (task.recurrenceType === 'WEEKLY_GOAL') {
-        const weekStart = getWeekStart(dateStr)
-        if (dateStr === weekStart) {
-          max += task.points
-        }
-      } else {
+      // WEEKLY_GOAL never enters the daily denominator. A completed goal
+      // shows on its actual completion date; an uncompleted goal is shown
+      // as missed only on the week's Sunday (one weekly opportunity, not
+      // seven missed tasks).
+      const isGoal = task.recurrenceType === 'WEEKLY_GOAL'
+      if (!isGoal) {
         max += task.points
       }
 
@@ -834,7 +851,7 @@ export async function getDayDetail(dateStr: string): Promise<DayDetail> {
           category: task.category,
           pointsEarned: completion.pointsEarned,
         })
-      } else {
+      } else if (!isGoal || dateStr === getWeekEnd(dateStr)) {
         missedTasks.push({
           taskId: task.id,
           title: task.title,

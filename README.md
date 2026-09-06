@@ -2,24 +2,35 @@
 
 A personal scoreboard for tracking productivity, habits, and goal completion.
 
+## Product philosophy
+
+ScoreDay is a personal performance scoreboard: Tasks → Points → Daily
+Score → Weekly Performance → Long-term Consistency. It is deliberately NOT
+a gamified app — there is no XP, no levels, no badges, no leaderboards.
+The core metrics are Score, Points, Completion Rate, Consistency, Streaks,
+History, and Trends.
+
 ## Features
-- Seven recurrence types driven by a deterministic engine (`lib/recurrence.ts`):
-  DAILY · WEEKDAYS (any day combination) · WEEKLY (once per Mon-Sun week,
-  complete any day) · EVERY_N_DAYS (anchored to a start date) ·
-  EVERY_N_WEEKS · MONTHLY (short months clamp to the last day) · ONE_TIME.
+- Recurrence driven by a deterministic engine (`lib/recurrence.ts`):
+  DAILY · WEEKLY (certain days) · WEEKLY_GOAL (once per Mon-Sun week,
+  complete any day) · CUSTOM (every N days/weeks/months) · NONE (one time).
 - Occurrence-based completions: unique(taskId, occurrenceDate) makes double
-  completion of the same occurrence impossible at the DB layer; weekly tasks
-  are keyed by their week's Monday, enforcing one-per-week automatically.
-- Scoring respects real occurrences — never "points x 7". Points are frozen
-  snapshots at completion time; editing tasks never rewrites history.
+  completion of the same occurrence impossible at the DB layer. Certain-days
+  tasks complete per calendar date; only WEEKLY_GOAL shares its week's
+  Monday key, enforcing one-per-week automatically.
+- Scoring respects real occurrences — never "points x 7". Daily score is
+  earned / available for tasks actually scheduled that date; weekly score is
+  total earned / total available across Mon-Sun. Weekly goals never enter a
+  daily denominator. Points are frozen snapshots at completion time
+  (`TaskCompletion.pointsEarned`); editing tasks never rewrites history.
 - Task status engine: NOT_DUE / DUE / COMPLETED / MISSED / UPCOMING / OVERDUE
-  computed centrally per task+date.
-- Game-style leveling system:
-  - Every completion awards its task's points as XP.
-  - Early levels come fast — Level 2 after ~2 tasks, Level 3 within one strong day.
-  - Later levels demand consistency: L2@16, L3@48, L4@96, L5@160, L6@240 ... L10@720 total XP.
-  - A "LEVEL UP!" banner celebrates every promotion.
-- Streak tracking (consecutive days with points).
+  (+ SATISFIED for weekly goals) computed centrally per task+date.
+- Progress/History page (`/progress`): performance summary, score history,
+  activity calendar, consistency (current/best streak, consistency %),
+  monthly trends, and a day-detail view for any date.
+- Consistency tracking (`lib/streaks.ts`): a streak day is a scheduled day
+  finished at 100%. Days with no scheduled tasks are "no data" — they
+  neither extend nor break streaks.
 - Local-first storage with SQLite.
 
 ## Tech Stack

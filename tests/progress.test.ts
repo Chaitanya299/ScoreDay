@@ -81,20 +81,21 @@ const { mockTasks, mockCompletions } = vi.hoisted(() => {
     { taskId: 'task-workout', occurrenceDate: '2026-08-24', completedOn: '2026-08-24', pointsEarned: 10 },
     { taskId: 'task-work', occurrenceDate: '2026-08-24', completedOn: '2026-08-24', pointsEarned: 10 },
     { taskId: 'task-read', occurrenceDate: '2026-08-24', completedOn: '2026-08-24', pointsEarned: 5 },
-    // Tuesday 2026-08-25 (WEEKLY tasks use week start as occurrenceDate)
+    // Tuesday 2026-08-25 (certain-days tasks use the calendar date as occurrenceDate;
+    // only WEEKLY_GOAL shares the week's Monday key)
     { taskId: 'task-water', occurrenceDate: '2026-08-25', completedOn: '2026-08-25', pointsEarned: 8 },
-    { taskId: 'task-work', occurrenceDate: '2026-08-24', completedOn: '2026-08-25', pointsEarned: 10 },
+    { taskId: 'task-work', occurrenceDate: '2026-08-25', completedOn: '2026-08-25', pointsEarned: 10 },
     // Wednesday 2026-08-26
     { taskId: 'task-water', occurrenceDate: '2026-08-26', completedOn: '2026-08-26', pointsEarned: 8 },
-    { taskId: 'task-workout', occurrenceDate: '2026-08-24', completedOn: '2026-08-26', pointsEarned: 10 },
-    { taskId: 'task-work', occurrenceDate: '2026-08-24', completedOn: '2026-08-26', pointsEarned: 10 },
+    { taskId: 'task-workout', occurrenceDate: '2026-08-26', completedOn: '2026-08-26', pointsEarned: 10 },
+    { taskId: 'task-work', occurrenceDate: '2026-08-26', completedOn: '2026-08-26', pointsEarned: 10 },
     // Thursday 2026-08-27
     { taskId: 'task-water', occurrenceDate: '2026-08-27', completedOn: '2026-08-27', pointsEarned: 8 },
-    { taskId: 'task-work', occurrenceDate: '2026-08-24', completedOn: '2026-08-27', pointsEarned: 10 },
+    { taskId: 'task-work', occurrenceDate: '2026-08-27', completedOn: '2026-08-27', pointsEarned: 10 },
     // Friday 2026-08-28
     { taskId: 'task-water', occurrenceDate: '2026-08-28', completedOn: '2026-08-28', pointsEarned: 8 },
-    { taskId: 'task-workout', occurrenceDate: '2026-08-24', completedOn: '2026-08-28', pointsEarned: 10 },
-    { taskId: 'task-work', occurrenceDate: '2026-08-24', completedOn: '2026-08-28', pointsEarned: 10 },
+    { taskId: 'task-workout', occurrenceDate: '2026-08-28', completedOn: '2026-08-28', pointsEarned: 10 },
+    { taskId: 'task-work', occurrenceDate: '2026-08-28', completedOn: '2026-08-28', pointsEarned: 10 },
     // Saturday 2026-08-29
     { taskId: 'task-water', occurrenceDate: '2026-08-29', completedOn: '2026-08-29', pointsEarned: 8 },
     { taskId: 'task-deepclean', occurrenceDate: '2026-08-29', completedOn: '2026-08-29', pointsEarned: 7 },
@@ -194,10 +195,10 @@ describe('Progress Service - Date Range Helpers', () => {
 
 describe('Progress Service - Core Calculations', () => {
   describe('getDailyProgress', () => {
-    it('calculates Monday correctly (Water + Workout + Work + Read = 33/33 = 100%)', async () => {
+    it('calculates Monday correctly (Water + Workout + Work = 28 max; goal excluded from daily max)', async () => {
       const result = await getDailyProgress('2026-08-24')
       expect(result.earned).toBe(33)
-      expect(result.max).toBe(33)
+      expect(result.max).toBe(28)
       expect(result.percentage).toBe(100)
       expect(result.hasScheduledTasks).toBe(true)
     })
@@ -432,14 +433,24 @@ describe('Progress Service - Core Calculations', () => {
   })
 
   describe('getDayDetail', () => {
-    it('returns detailed breakdown for a day', async () => {
+    it('returns detailed breakdown for a day (goal excluded from max, shown as completed)', async () => {
       const detail = await getDayDetail('2026-08-24')
       expect(detail.date).toBe('2026-08-24')
       expect(detail.percentage).toBe(100)
       expect(detail.earned).toBe(33)
-      expect(detail.max).toBe(33)
+      expect(detail.max).toBe(28)
       expect(detail.completedTasks.length).toBe(4)
       expect(detail.missedTasks.length).toBe(0)
+    })
+
+    it('shows an uncompleted weekly goal as missed only on Sunday', async () => {
+      // No completions on Sunday 2026-08-30: water completed, goal missed.
+      // getDayDetail shows the pending goal as missed on Sunday (weekly
+      // opportunity) but the Monday view tested above has no missed entries.
+      const sunday = await getDayDetail('2026-08-30')
+      expect(sunday.missedTasks.some(t => t.taskId === 'task-read')).toBe(true)
+      const monday = await getDayDetail('2026-08-24')
+      expect(monday.missedTasks.length).toBe(0)
     })
 
     it('includes missed tasks array', async () => {

@@ -55,6 +55,19 @@ export function lastDayOfMonth(year: number, monthIndex: number): number {
   return new Date(year, monthIndex + 1, 0).getDate()
 }
 
+/** Check if a string is a valid YYYY-MM-DD date */
+export function isValidDateString(value: unknown): value is string {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  return !Number.isNaN(parseLocalDate(value).getTime())
+}
+
+/** Check if a date string is past relative to a reference date (or today) */
+export function isPastDateString(iso: string, referenceIso?: string): boolean {
+  if (!isValidDateString(iso)) return false
+  const ref = referenceIso ?? getLocalDateString()
+  return iso < ref
+}
+
 /** Inclusive list of every ISO date from startIso to endIso. */
 export function eachDay(startIso: string, endIso: string): string[] {
   const out: string[] = []

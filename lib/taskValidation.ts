@@ -3,8 +3,10 @@ import {
   RECURRENCE_TYPES,
   type RecurrenceType,
   type RecurrenceTask,
+  parseDaysInput,
+  serializeDaysOfWeek
 } from './recurrence'
-import { getLocalDateString } from './dates'
+import { getLocalDateString, isValidDateString, isPastDateString } from './dates'
 
 export interface ValidatedTask extends RecurrenceTask {
   title: string
@@ -46,7 +48,7 @@ export function validateRecurrenceInput(
     startDate: undefined,
     endDate: undefined,
     dueDate: undefined,
-    active: active ?? true,
+    active: active === true,
   }
 
   switch (recurrenceType) {
@@ -96,7 +98,7 @@ export function validateRecurrenceInput(
       }
 
       // Validate dayOfMonth for MONTH unit
-      let dayOfMonth = body.dayOfMonth !== undefined ? Number(body.dayOfMonth) : undefined
+      const dayOfMonth = body.dayOfMonth !== undefined ? Number(body.dayOfMonth) : undefined
       if (unit === 'MONTH') {
         if (dayOfMonth === undefined || dayOfMonth < 1 || dayOfMonth > 31) {
           return { error: 'Day of month must be between 1 and 31' }
@@ -104,8 +106,8 @@ export function validateRecurrenceInput(
       }
 
       // Validate dates
-      let startDate = body.startDate as string | undefined
-      let endDate = body.endDate as string | undefined
+      const startDate = body.startDate as string | undefined
+      const endDate = body.endDate as string | undefined
       
       if (startDate && !isValidDateString(startDate)) {
         return { error: 'Start date must be valid (YYYY-MM-DD)' }

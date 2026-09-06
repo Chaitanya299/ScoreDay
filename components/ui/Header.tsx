@@ -11,6 +11,9 @@ export default function Header() {
           <Link href="/" className="text-slate-700 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-400">
             Today
           </Link>
+          <Link href="/progress" className="text-slate-700 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-400">
+            Progress
+          </Link>
           <Link href="/tasks" className="text-slate-700 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-400">
             Tasks
           </Link>

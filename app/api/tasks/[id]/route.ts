@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateRecurrenceInput } from '@/lib/taskValidation'
+import type { RecurrenceTask } from '@/lib/recurrence'
 
 export async function PUT(
   request: Request,
@@ -17,7 +18,7 @@ export async function PUT(
 
     // Validation may need the stored dueDate to allow legacy past-dated
     // ONE_TIME tasks to be edited without touching their date.
-    const result = validateRecurrenceInput(body, existing)
+    const result = validateRecurrenceInput(body, existing as RecurrenceTask)
     if ('error' in result) {
       return NextResponse.json({ error: result.error }, { status: 400 })
     }

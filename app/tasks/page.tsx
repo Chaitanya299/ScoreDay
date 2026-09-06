@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Header from '@/components/ui/Header'
 import TaskForm from '@/components/tasks/TaskForm'
-import { parseDaysOfWeek, formatRecurrence, type RecurrenceType } from '@/lib/recurrence'
+import { parseDaysOfWeek, formatRecurrence, type RecurrenceType, type RecurrenceTask } from '@/lib/recurrence'
 
 interface Task {
   id: string
@@ -15,6 +15,12 @@ interface Task {
   daysOfWeek: string
   dueDate: string | null
   active: boolean
+  interval: number
+  unit: string | null
+  selectedWeekdays: string | null
+  dayOfMonth: number | null
+  startDate: string | null
+  endDate: string | null
 }
 
 export default function TasksPage() {
@@ -52,8 +58,8 @@ export default function TasksPage() {
       body: JSON.stringify({
         ...data,
         daysOfWeek:
-          data.recurrenceType === 'SPECIFIC_DAYS' ? data.daysOfWeek.join(',') : undefined,
-        dueDate: data.recurrenceType === 'ONE_TIME' ? data.dueDate : undefined,
+          data.recurrenceType === 'WEEKLY' ? data.daysOfWeek.join(',') : undefined,
+        dueDate: data.recurrenceType === 'NONE' ? data.dueDate : undefined,
       }),
     })
 
@@ -141,7 +147,7 @@ export default function TasksPage() {
                     +{task.points} pts
                   </span>
                   <span className="text-xs font-medium text-slate-400 truncate">
-                    {formatRecurrence(task)}
+                    {formatRecurrence(task as RecurrenceTask)}
                   </span>
                 </div>
               </div>
@@ -165,6 +171,19 @@ interface TaskDataShape {
   active: boolean
 }
 
+function normalizeRecurrenceTypeForForm(type: string): RecurrenceType {
+  switch (type) {
+    case 'SPECIFIC_DAYS':
+      return 'WEEKLY'
+    case 'WEEKLY':
+      return 'WEEKLY_GOAL'
+    case 'ONE_TIME':
+      return 'NONE'
+    default:
+      return type as RecurrenceType
+  }
+}
+
 function toFormData(t: Task): TaskDataShape {
   return {
     id: t.id,
@@ -172,7 +191,7 @@ function toFormData(t: Task): TaskDataShape {
     description: t.description ?? '',
     category: t.category ?? '',
     points: t.points,
-    recurrenceType: t.recurrenceType as RecurrenceType,
+    recurrenceType: normalizeRecurrenceTypeForForm(t.recurrenceType),
     daysOfWeek: parseDaysOfWeek(t.daysOfWeek),
     dueDate: t.dueDate ?? '',
     active: t.active,

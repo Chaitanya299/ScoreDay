@@ -14,9 +14,9 @@ import { getLocalDateString, getDaysOfWeek } from './dates'
 import {
   isTaskDueOnDate,
   getTaskStatus,
-  getOccurrencesForDateRange,
   type RecurrenceTask,
 } from './recurrence'
+import { getCurrentStreak } from './streaks'
 
 export async function getDashboardData(dateStr?: string) {
   const targetDate = dateStr || getLocalDateString()
@@ -47,7 +47,7 @@ export async function getDashboardData(dateStr?: string) {
   let maxDaily = 0
 
   const todaysRows = tasks.map((task) => {
-    const rec: RecurrenceTask = task
+    const rec: RecurrenceTask = task as RecurrenceTask
     const completions = completionsByTask.get(task.id) ?? []
     const completedKeys = new Set(completions.map((c) => c.occurrenceDate))
     const status = getTaskStatus(rec, targetDate, { todayIso: targetDate, completedKeys })
@@ -55,11 +55,11 @@ export async function getDashboardData(dateStr?: string) {
   })
 
   // Today's list membership: actionable now, completed earlier today,
-  // or weekly tasks completed earlier this week (remain visible as "Completed this week").
+  // or weekly goals completed earlier this week (remain visible as "Completed this week").
   const todaysTasks = todaysRows.filter(({ task, status, completions }) => {
     if (status === 'DUE' || status === 'OVERDUE') return true
     if (status === 'COMPLETED') {
-      if (task.recurrenceType === 'WEEKLY') return true
+      if (task.recurrenceType === 'WEEKLY_GOAL') return true
       return completions.some((c) => c.completedOn === targetDate)
     }
     return false
@@ -85,7 +85,9 @@ export async function getDashboardData(dateStr?: string) {
   for (const { task, status, completions } of todaysTasks) {
     const completedThisOccurrence = status === 'COMPLETED'
     if (status === 'DUE' || status === 'OVERDUE' || status === 'COMPLETED') {
-      if (task.recurrenceType !== 'WEEKLY') {
+      // WEEKLY_GOAL is one opportunity per week: it never enters the daily
+      // denominator. Certain-days (WEEKLY) tasks due today do count.
+      if (task.recurrenceType !== 'WEEKLY_GOAL') {
         maxDaily += task.points
       }
     }
@@ -101,7 +103,7 @@ export async function getDashboardData(dateStr?: string) {
       category: task.category,
       points: task.points,
       recurrenceType: task.recurrenceType,
-      daysOfWeek: task.daysOfWeek,
+      daysOfWeek: task.selectedWeekdays ?? '',
       dueDate: task.dueDate,
       active: task.active,
       status,
@@ -118,11 +120,23 @@ export async function getDashboardData(dateStr?: string) {
   // ---------------------------------------------------------------------
   const weeklyEarned = weekCompletions.reduce((acc, c) => acc + c.pointsEarned, 0)
 
+  // Weekly max: total earned / total available across Mon-Sun (never an
+  // average of daily percentages). Certain-days tasks count once per
+  // scheduled day; weekly goals count once for the week.
   let weeklyMax = 0
+  for (const day of weekDays) {
+    for (const task of tasks) {
+      const rec: RecurrenceTask = task as RecurrenceTask
+      if (task.recurrenceType !== 'WEEKLY_GOAL' && isTaskDueOnDate(rec, day.dateStr)) {
+        weeklyMax += task.points
+      }
+    }
+  }
   for (const task of tasks) {
-    const rec: RecurrenceTask = task
-    const occurrences = getOccurrencesForDateRange(rec, weekStart, weekEnd)
-    weeklyMax += occurrences.length * task.points
+    if (task.recurrenceType !== 'WEEKLY_GOAL') continue
+    if (task.startDate && task.startDate > weekEnd) continue
+    if (task.endDate && task.endDate < weekStart) continue
+    weeklyMax += task.points
   }
 
   const weeklyPercentage =
@@ -138,13 +152,10 @@ export async function getDashboardData(dateStr?: string) {
     const dayDate = day.dateStr
     let dayMax = 0
     for (const task of tasks) {
-      const rec: RecurrenceTask = task
-      if (isTaskDueOnDate(rec, dayDate)) {
-        if (task.recurrenceType === 'WEEKLY') {
-          if (dayDate === weekStart) dayMax += task.points
-        } else {
-          dayMax += task.points
-        }
+      const rec: RecurrenceTask = task as RecurrenceTask
+      // WEEKLY_GOAL never enters daily denominators.
+      if (task.recurrenceType !== 'WEEKLY_GOAL' && isTaskDueOnDate(rec, dayDate)) {
+        dayMax += task.points
       }
     }
     const dayEarned = weekCompletions
@@ -213,22 +224,7 @@ export async function getDashboardData(dateStr?: string) {
 }
 
 async function computeStreak(todayIso: string): Promise<number> {
-  const lookback = new Date(todayIso + 'T00:00:00')
-  lookback.setDate(lookback.getDate() - 400)
-  const completions = await prisma.taskCompletion.findMany({
-    where: { completedOn: { gte: getLocalDateString(lookback), lte: todayIso } },
-    select: { completedOn: true },
-  })
-  const daysWithPoints = new Set(completions.map((c) => c.completedOn))
-
-  let streak = 0
-  const cursor = new Date(todayIso + 'T00:00:00')
-  if (!daysWithPoints.has(getLocalDateString(cursor))) {
-    cursor.setDate(cursor.getDate() - 1)
-  }
-  while (daysWithPoints.has(getLocalDateString(cursor))) {
-    streak++
-    cursor.setDate(cursor.getDate() - 1)
-  }
-  return streak
+  // A streak day is a scheduled day finished at 100%. Days with no scheduled
+  // tasks neither extend nor break the run. Single source: lib/streaks.ts.
+  return getCurrentStreak(todayIso)
 }

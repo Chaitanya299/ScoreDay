@@ -1,7 +1,8 @@
 import Header from '@/components/ui/Header'
 import ProgressView from '@/components/progress/ProgressView'
-import { getMonthlyProgress, getTrendComparison } from '@/lib/progress'
+import { getMonthlyProgress, getTrendComparison, getMonthRange } from '@/lib/progress'
 import { getCurrentMonthIso } from '@/lib/progress'
+import { getStreakData } from '@/lib/streaks'
 
 export const revalidate = 0
 
@@ -12,13 +13,15 @@ export default async function ProgressPage({
 }) {
   const { month, view = 'month' } = await searchParams
   const targetMonth = month || getCurrentMonthIso()
+  const monthRange = getMonthRange(targetMonth)
 
-  const [monthlyProgress, trend] = await Promise.all([
+  const [monthlyProgress, trend, streaks] = await Promise.all([
     getMonthlyProgress(targetMonth),
     getTrendComparison({
       start: targetMonth + '-01',
       end: new Date(new Date(targetMonth + '-01').setMonth(new Date(targetMonth + '-01').getMonth() + 1) - 1).toISOString().slice(0, 10),
     }),
+    getStreakData(monthRange.start, monthRange.end),
   ])
 
   return (
@@ -31,6 +34,7 @@ export default async function ProgressPage({
             view,
             monthlyProgress,
             trend,
+            streaks,
           }}
         />
       </main>

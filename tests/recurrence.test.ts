@@ -51,10 +51,17 @@ describe('SPECIFIC_DAYS (Mon/Wed/Fri)', () => {
   it('formats selected days', () => {
     expect(formatRecurrence(task)).toBe('Mon, Wed, Fri')
   })
+
+  it('each scheduled day is its own completable occurrence (date keys)', () => {
+    // Certain-days tasks complete per day: Monday and Wednesday share no key,
+    // so finishing Monday does not block Wednesday.
+    expect(getOccurrenceKey(task, '2026-08-24')).toBe('2026-08-24')
+    expect(getOccurrenceKey(task, '2026-08-26')).toBe('2026-08-26')
+  })
 })
 
-describe('WEEKLY (Any day this week)', () => {
-  const task: RecurrenceTask = { recurrenceType: 'WEEKLY' }
+describe('WEEKLY_GOAL (Any day this week)', () => {
+  const task: RecurrenceTask = { recurrenceType: 'WEEKLY_GOAL' }
 
   it('is available Monday, Wednesday and Sunday of the week', () => {
     expect(isTaskDueOnDate(task, D('2026-08-24'))).toBe(true) // Mon

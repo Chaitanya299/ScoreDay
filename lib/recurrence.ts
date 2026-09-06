@@ -12,7 +12,6 @@ import {
   parseLocalDate,
   getLocalDateString,
   getWeekStart,
-  eachDay,
 } from './dates'
 
 export const RECURRENCE_TYPES = [
@@ -30,6 +29,7 @@ export interface RecurrenceTask {
   interval: number // default: 1
   unit?: string // DAY | WEEK | MONTH
   selectedWeekdays?: string // "0,1,2,3,4,5,6" — 0=Sun..6=Sat
+  daysOfWeek?: string // legacy alias for selectedWeekdays
   dayOfMonth?: number // 1-31
   dueDate?: string | null // YYYY-MM-DD (for NONE type)
   startDate?: string // YYYY-MM-DD (when recurrence begins)
@@ -61,6 +61,17 @@ export function parseDaysOfWeek(daysOfWeek: string | null | undefined): number[]
     .map((s) => Number.parseInt(s.trim(), 10))
     .filter((n) => Number.isInteger(n) && n >= 0 && n <= 6)
   return parsed.length > 0 ? Array.from(new Set(parsed)).sort() : [0, 1, 2, 3, 4, 5, 6]
+}
+
+// Get selected weekdays from task (supports both selectedWeekdays and daysOfWeek for backward compat)
+function getSelectedWeekdays(task: RecurrenceTask): string {
+  return task.selectedWeekdays ?? task.daysOfWeek ?? '0,1,2,3,4,5,6'
+}
+
+// Schedule anchor: a valid startDate, else the epoch fallback so a malformed
+// bound degrades to "always scheduled" instead of "never scheduled".
+function scheduleStart(task: RecurrenceTask): string {
+  return isValidDateString(task.startDate) ? (task.startDate as string) : '1970-01-01'
 }
 
 export function serializeDaysOfWeek(days: number[]): string {
@@ -99,35 +110,55 @@ export function isPastDateString(iso: string, referenceIso?: string): boolean {
   return iso < ref
 }
 
+// Normalize legacy recurrence type names to new ones
+function normalizeRecurrenceType(type: string): string {
+  switch (type) {
+    case 'SPECIFIC_DAYS':
+      return 'WEEKLY'
+    case 'ONE_TIME':
+      return 'NONE'
+    default:
+      return type
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Core engine
 // ---------------------------------------------------------------------------
 
 export function isTaskDueOnDate(task: RecurrenceTask, dateIso: string): boolean {
-  // Check if date is within start/end bounds
-  if (task.startDate && dateIso < task.startDate) return false
-  if (task.endDate && dateIso > task.endDate) return false
+  // Check if date is within start/end bounds. Malformed bounds (anything
+  // that is not a YYYY-MM-DD string) are ignored: a bad bound must never
+  // silently zero out a task's entire schedule.
+  if (isValidDateString(task.startDate) && dateIso < (task.startDate as string)) return false
+  if (isValidDateString(task.endDate) && dateIso > (task.endDate as string)) return false
 
-  switch (task.recurrenceType) {
+  // Normalize recurrence type for backward compatibility
+  const type = normalizeRecurrenceType(task.recurrenceType)
+  const interval = task.interval ?? 1
+  
+  switch (type) {
     case 'NONE':
       return !!task.dueDate && task.dueDate === dateIso
     case 'DAILY':
-      // Every interval days starting from startDate
-      if (!task.startDate) return false
-      const daysDiff = daysBetween(task.startDate, dateIso)
-      return daysDiff >= 0 && daysDiff % task.interval === 0
-    case 'WEEKLY':
+      // Every interval days starting from startDate (or epoch if not set)
+      const dailyStart = scheduleStart(task)
+      const daysDiff = daysBetween(dailyStart, dateIso)
+      return daysDiff >= 0 && daysDiff % interval === 0
+    case 'WEEKLY': {
       // Every interval weeks on selected weekdays
-      if (!task.startDate) return false
-      const weeksDiff = weeksBetween(task.startDate, dateIso)
-      if (weeksDiff < 0 || weeksDiff % task.interval !== 0) return false
+      const weeklyStart = scheduleStart(task)
+      const weeksDiff = weeksBetween(weeklyStart, dateIso)
+      if (weeksDiff < 0 || weeksDiff % interval !== 0) return false
       const weekday = parseLocalDate(dateIso).getDay()
-      return parseDaysOfWeek(task.selectedWeekdays).includes(weekday)
-    case 'WEEKLY_GOAL':
+      return parseDaysOfWeek(getSelectedWeekdays(task)).includes(weekday)
+    }
+    case 'WEEKLY_GOAL': {
       // Once per interval weeks, any day
-      if (!task.startDate) return false
-      const weeksDiff = weeksBetween(task.startDate, dateIso)
-      return weeksDiff >= 0 && weeksDiff % task.interval === 0
+      const goalStart = scheduleStart(task)
+      const weeksDiff = weeksBetween(goalStart, dateIso)
+      return weeksDiff >= 0 && weeksDiff % interval === 0
+    }
     case 'CUSTOM':
       if (!task.startDate) return false
       switch (task.unit) {
@@ -138,7 +169,7 @@ export function isTaskDueOnDate(task: RecurrenceTask, dateIso: string): boolean 
           const weeksDiff = weeksBetween(task.startDate, dateIso)
           if (weeksDiff < 0 || weeksDiff % task.interval !== 0) return false
           const weekday = parseLocalDate(dateIso).getDay()
-          return parseDaysOfWeek(task.selectedWeekdays).includes(weekday)
+          return parseDaysOfWeek(getSelectedWeekdays(task)).includes(weekday)
         }
         case 'MONTH': {
           // Check if it's the right day of month in the right interval
@@ -164,7 +195,12 @@ export function isTaskDueOnDate(task: RecurrenceTask, dateIso: string): boolean 
 }
 
 export function getOccurrenceKey(task: RecurrenceTask, completionDateIso: string): string {
-  if (task.recurrenceType === 'WEEKLY' || task.recurrenceType === 'WEEKLY_GOAL') {
+  const type = normalizeRecurrenceType(task.recurrenceType)
+  // WEEKLY_GOAL is one opportunity per Mon-Sun week, so all completions in
+  // the week share the week's Monday as their key. Every other type
+  // (including WEEKLY certain-days tasks) completes per calendar date, so
+  // each scheduled day is its own completable occurrence.
+  if (type === 'WEEKLY_GOAL') {
     return getWeekStart(completionDateIso)
   }
   return completionDateIso
@@ -185,16 +221,22 @@ export function getOccurrencesForDateRange(
 ): string[] {
   if (rangeEndIso < rangeStartIso) return []
   
-  // Adjust range to be within task bounds
+  // Adjust range to be within task bounds (ignoring malformed bounds)
   let start = rangeStartIso
   let end = rangeEndIso
-  
-  if (task.startDate && start < task.startDate) start = task.startDate
-  if (task.endDate && end > task.endDate) end = task.endDate
+
+  if (isValidDateString(task.startDate) && start < (task.startDate as string)) {
+    start = task.startDate as string
+  }
+  if (isValidDateString(task.endDate) && end > (task.endDate as string)) {
+    end = task.endDate as string
+  }
   
   if (start > end) return []
 
-  switch (task.recurrenceType) {
+  const type = normalizeRecurrenceType(task.recurrenceType)
+  
+  switch (type) {
     case 'NONE':
       return isTaskDueOnDate(task, start) ? [start] : []
     case 'DAILY': {
@@ -325,7 +367,9 @@ export function getTaskStatus(
   const { todayIso, completedKeys } = ctx
   const completed = (key: string) => completedKeys?.has(key) ?? false
 
-  if (task.recurrenceType === 'NONE') {
+  const type = normalizeRecurrenceType(task.recurrenceType)
+  
+  if (type === 'NONE') {
     const key = task.dueDate ?? ''
     if (completed(key)) return 'COMPLETED'
     if (!task.dueDate) return 'NOT_DUE'
@@ -339,15 +383,15 @@ export function getTaskStatus(
   const key = getOccurrenceKey(task, dateIso)
   if (completed(key)) return 'COMPLETED'
 
-  if (task.recurrenceType === 'WEEKLY_GOAL') {
+  if (type === 'WEEKLY_GOAL') {
     const weekOfToday = getWeekStart(todayIso)
     const weekOfDate = getWeekStart(dateIso)
     if (weekOfDate > weekOfToday) return 'UPCOMING'
-    if (weekOfDate === weekOfToday) return 'SATISFIED' // Special status for weekly goal
+    if (weekOfDate === weekOfToday) return 'DUE'
     return 'MISSED'
   }
 
-  if (task.recurrenceType === 'WEEKLY') {
+  if (type === 'WEEKLY') {
     const weekOfToday = getWeekStart(todayIso)
     const weekOfDate = getWeekStart(dateIso)
     if (weekOfDate > weekOfToday) return 'UPCOMING'
@@ -383,34 +427,53 @@ function formatDaysLabel(daysOfWeek: string | null | undefined): string {
 }
 
 export function formatRecurrence(task: RecurrenceTask): string {
-  switch (task.recurrenceType) {
+  const originalType = task.recurrenceType
+  const type = normalizeRecurrenceType(task.recurrenceType)
+  const interval = task.interval ?? 1
+  
+  // Handle legacy SPECIFIC_DAYS format (just shows days)
+  if (originalType === 'SPECIFIC_DAYS') {
+    return formatDaysLabel(getSelectedWeekdays(task))
+  }
+  
+  // Handle legacy WEEKLY format (Any day this week)
+  if (originalType === 'WEEKLY' && type === 'WEEKLY') {
+    // Old WEEKLY with no specific days = Any day this week
+    const weekdays = getSelectedWeekdays(task)
+    if (weekdays === '0,1,2,3,4,5,6' || !task.selectedWeekdays && !task.daysOfWeek) {
+      return 'Any day this week'
+    }
+  }
+  
+  switch (type) {
     case 'NONE':
       return task.dueDate ? `Due ${formatDueDate(task.dueDate)}` : 'One time'
     case 'DAILY':
-      return task.interval === 1 ? 'Every day' : `Every ${task.interval} days`
+      return interval === 1 ? 'Every day' : `Every ${interval} days`
     case 'WEEKLY':
-      if (task.interval === 1) {
-        return `Every week on ${formatDaysLabel(task.selectedWeekdays)}`
+      if (interval === 1) {
+        return `Every week on ${formatDaysLabel(getSelectedWeekdays(task))}`
       } else {
-        return `Every ${task.interval} weeks on ${formatDaysLabel(task.selectedWeekdays)}`
+        return `Every ${interval} weeks on ${formatDaysLabel(getSelectedWeekdays(task))}`
       }
     case 'WEEKLY_GOAL':
       return 'Any day this week'
     case 'CUSTOM':
       switch (task.unit) {
         case 'DAY':
-          return task.interval === 1 ? 'Every day' : `Every ${task.interval} days`
+          return interval === 1 ? 'Every day' : `Every ${interval} days`
         case 'WEEK':
-          if (task.interval === 1) {
-            return `Every week on ${formatDaysLabel(task.selectedWeekdays)}`
+          if (interval === 1) {
+            return `Every week on ${formatDaysLabel(getSelectedWeekdays(task))}`
           } else {
-            return `Every ${task.interval} weeks on ${formatDaysLabel(task.selectedWeekdays)}`
+            return `Every ${interval} weeks on ${formatDaysLabel(getSelectedWeekdays(task))}`
           }
         case 'MONTH':
-          if (task.interval === 1) {
-            return `Every month on the ${task.dayOfMonth}${getOrdinalSuffix(task.dayOfMonth)}`
+          const dayOfMonth = task.dayOfMonth ?? 1
+          if (interval === 1) {
+            return `Every month on the ${dayOfMonth}${getOrdinalSuffix(dayOfMonth)}`
           } else {
-            return `Every ${task.interval} months on the ${task.dayOfMonth}${getOrdinalSuffix(task.dayOfMonth)}`
+            return `Every ${interval} months on the ${dayOfMonth}${getOrdinalSuffix(dayOfMonth)}`
           }
         default:
           return 'Custom'

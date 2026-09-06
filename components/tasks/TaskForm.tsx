@@ -29,9 +29,9 @@ const OTHER = '__other__'
 
 const RECURRENCE_OPTIONS: { value: RecurrenceType; label: string }[] = [
   { value: 'DAILY', label: 'Every day' },
-  { value: 'SPECIFIC_DAYS', label: 'Certain days' },
-  { value: 'WEEKLY', label: 'Any day this week' },
-  { value: 'ONE_TIME', label: 'One time' },
+  { value: 'WEEKLY', label: 'Certain days' },
+  { value: 'WEEKLY_GOAL', label: 'Any day this week' },
+  { value: 'NONE', label: 'One time' },
 ]
 
 export default function TaskForm({ initialData, existingCategories = [], onSubmit, onCancel }: TaskFormProps) {
@@ -71,10 +71,10 @@ export default function TaskForm({ initialData, existingCategories = [], onSubmi
     if (formData.points < 1 || formData.points > 10) e.points = 'Points must be 1-10'
 
     switch (formData.recurrenceType) {
-      case 'SPECIFIC_DAYS':
+      case 'WEEKLY':
         if (formData.daysOfWeek.length === 0) e.daysOfWeek = 'Select at least one day'
         break
-      case 'ONE_TIME': {
+      case 'NONE': {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(formData.dueDate)) {
           e.dueDate = 'Pick a due date'
         } else if (formData.dueDate < getLocalDateString()) {
@@ -232,7 +232,7 @@ export default function TaskForm({ initialData, existingCategories = [], onSubmi
         </div>
       </fieldset>
 
-      {formData.recurrenceType === 'SPECIFIC_DAYS' && (
+      {formData.recurrenceType === 'WEEKLY' && (
         <div>
           <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
             Repeat on *
@@ -256,24 +256,17 @@ export default function TaskForm({ initialData, existingCategories = [], onSubmi
               )
             })}
           </div>
-          <div className="flex gap-2 mt-3">
-            <button type="button" onClick={() => setFormData({ ...formData, daysOfWeek: [...ALL_DAYS] })} className="text-xs text-indigo-600 hover:text-indigo-700 dark:text-indigo-400">Every day</button>
-            <span className="text-xs text-slate-300 dark:text-slate-700">|</span>
-            <button type="button" onClick={() => setFormData({ ...formData, daysOfWeek: [1, 2, 3, 4, 5] })} className="text-xs text-indigo-600 hover:text-indigo-700 dark:text-indigo-400">Weekdays</button>
-            <span className="text-xs text-slate-300 dark:text-slate-700">|</span>
-            <button type="button" onClick={() => setFormData({ ...formData, daysOfWeek: [0, 6] })} className="text-xs text-indigo-600 hover:text-indigo-700 dark:text-indigo-400">Weekends</button>
-          </div>
           {errors.daysOfWeek && <p className="text-red-500 text-xs mt-1">{errors.daysOfWeek}</p>}
         </div>
       )}
 
-      {formData.recurrenceType === 'WEEKLY' && (
+      {formData.recurrenceType === 'WEEKLY_GOAL' && (
         <p className="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 rounded-lg px-3 py-2">
           Complete this anytime during the week. One completion covers the whole week.
         </p>
       )}
 
-      {formData.recurrenceType === 'ONE_TIME' && (
+      {formData.recurrenceType === 'NONE' && (
         <div>
           <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
             Due date *
