@@ -1,9 +1,10 @@
-# STATE — <!-- updated: 2026-09-06 -->
+# STATE — <!-- updated: 2026-09-18 -->
 
 ## Current focus
 Sprint 3 complete: production hardening done (tsc zero, hermetic CI with
-E2E, canonical seed, deployable SQLite config). ScoreDay is ready for
-first deployment on persistent-filesystem hosting.
+E2E, canonical seed, deployable SQLite config). Native iOS/macOS
+foundation scaffolded with Xcode projects, ScoreDayCore package, and
+SwiftUI views.
 
 ## Shape
 ```mermaid
@@ -21,94 +22,33 @@ flowchart TD
     C --> L[Client Components<br/>'use client']
 ```
 
-## Done
-- Implemented deterministic recurrence engine with 4 core types (DAILY, SPECIFIC_DAYS, WEEKLY, ONE_TIME)
-- Added comprehensive test suite for recurrence logic (17 tests)
-- Migrated legacy frequency system to new model preserving all completion history
-- Established Architecture Decision Record (ADR) practice with 6 decisions recorded
-- Added nanoid for client-side ID generation
-- Added Zod for request validation
-- Upgraded lodash to latest version
-- Completed frequency system redesign: Apple Reminders-inspired UI with single Repeat row → sheet/modal
-- Added WEEKLY_GOAL (any day during week) and CUSTOM recurrence types
-- Implemented human-readable recurrence formatting (formatRecurrence)
-- **Added Progress/History feature: /progress page with weekly/monthly views, summary cards, activity calendar, monthly trend charts**
-- 57 unit tests passing (17 recurrence + 40 progress)
-- 16 Playwright E2E tests passing
-- Lint clean, build successful
-- **Sprint: score-semantics audit + fixes (ADR-0007)** — weekly goals out of
-  all daily denominators (Mon max 28, week max 148 on reference dataset);
-  certain-days tasks complete per calendar date (date occurrence keys);
-  dashboard weekly max counts per scheduled day; dashboard streak redefined
-  as consecutive 100% scheduled days (delegates to new `lib/streaks.ts`)
-- **Day Detail experience** — clickable calendar/week days open a modal with
-  score, earned/max, completed + missed tasks (`getDayDetail` + new
-  `/api/progress/day` route)
-- **Consistency section on Progress** — Current Streak / Best Streak /
-  Consistency % via `getStreakData` (batched queries, no-task days skipped)
-- **Working week view** — Mon-Sun breakdown + weekly total with real
-  prev/next week navigation (`/api/progress/week`); month prev/next now
-  refetches via `/api/progress/month` (previously label-only)
-- **Legacy data cleanup** — dev rows migrated to canonical recurrence types;
-  corrupt unix-timestamp `startDate` values repaired; engine ignores
-  malformed date bounds instead of silently zeroing schedules
-- **XP/Level removal** — verified absent from code; removed stale leveling
-  docs from README
-- **Task form cleanup** — removed redundant Every day/Weekdays/Weekends
-  shortcut links under the weekday picker
-- **Mobile/a11y** — fixed 21px horizontal overflow on Progress (wrapping
-  period controls); calendar days are real buttons with labels; day modal
-  has dialog role, labelled close, and Escape handling; 44px touch targets
-  on nav controls
-- 73 unit tests passing (18 recurrence + 14 streaks + 41 progress)
-- 26 Playwright E2E tests passing (incl. day detail, week/month nav data
-  reload, streak display, XP absence, mobile overflow)
-- Lint clean, build successful
-- **Sprint 2: performance sections + undo + CI (ADR-0008)**
-- Task/Category/Missed sections rendered on Progress, period-scoped to the
-  active week/month (server-aggregated, weakest-first + name tiebreak)
-- Missed clamped to fully-past occurrences (today is actionable, not missed)
-- Completion undo: DELETE /api/completions (record removal, never point
-  mutation; already-undone converges without error state) + optimistic Undo
-  button on Today with reload-rollback
-- Global keyboard focus-visible styling + prefers-reduced-motion guard
-- Today/Tasks verified zero-overflow at 390px
-- CI pipeline (install, generate, lint, unit, build, Playwright vs next
-  start) + playwright.config.ts scoping E2E to *.spec.ts
-- 98 unit tests passing (18 recurrence + 14 streaks + 13 performance +
-  41 progress + 12 completions)
-- 33 Playwright E2E tests passing (complete→undo→complete-again round trip
-  with score-delta check, net-zero DB impact; Escape dialog; future-week
-  empty missed state)
-- Lint clean, build successful
-- Not committed: local dev.db page churn from test runs (net-zero rows)
-- **Sprint 3: production hardening (no scope expansion)**
-- tsc zero errors (fixed 8 pre-existing old-test mock type errors)
-- CI enforces install → generate → lint → tsc → unit → build → Playwright
-- dev.db untracked (runtime artifact); tracked scoring.ts.bak removed
-- Seed rewritten: canonical types + 14 days relative history; CI migrates
-  + seeds hermetically (verified: 33/33 E2E on fresh seeded DB and on
-  production server)
-- DATABASE_URL now honored (`env()` in schema; was hardcoded); absolute
-  paths required in production; relative env paths resolve CWD-relative
-- Dead deps pruned (lodash, pg, nanoid, zod — zero imports)
-- Deployment docs in README (VPS/Fly+volume recommended; serverless excluded)
+## Done (condensed)
+- **Recurrence engine** (4 core types + WEEKLY_GOAL/CUSTOM) with 18 tests
+- **Progress/History** — weekly/monthly views, summary cards, activity calendar, trend charts (41 tests)
+- **Streaks** — current/best/consistency % via `getStreakData` (14 tests)
+- **Day Detail** — clickable calendar days → modal with score/earned/max (`getDayDetail` + `/api/progress/day`)
+- **Working week** — Mon-Sun breakdown, real prev/next nav (`/api/progress/week`)
+- **Undo completions** — DELETE `/api/completions` + optimistic UI (12 tests)
+- **Performance sections** — Task/Category/Missed on Progress, period-scoped (13 tests)
+- **A11y/mobile** — 44px targets, dialog roles, Escape handling, zero-overflow at 390px
+- **Sprint 3 prod hardening** — tsc zero, hermetic CI (install→generate→lint→tsc→unit→build→E2E), canonical seed, DATABASE_URL honored, dead deps pruned
+- **98 unit / 33 E2E tests passing**, lint clean, build successful
 
 ## In progress
-- Finalizing verification of Repeat sheet/modal UI on desktop and mobile
-- Ensuring all edge cases handled for custom intervals (leap years, month boundaries)
-- Validating scoring behavior for Weekly Goal type (points awarded once per week)
-- Testing duplicate completion prevention across all recurrence types
+- Native macOS app: Xcode project + ScoreDayCore framework + 14 SwiftUI views/viewmodels
+- Native iOS app: parallel Xcode project structure
+- ScoreDayCore Swift Package (Models, ScoringEngine, Persistence, SyncManager)
 
 ## Next up
+- Wire native apps to API (GRDB local cache + sync)
+- Implement SwiftUI view logic + viewmodel functionality
 - Visual/product redesign phase (UI/UX improvements)
-- Consider adding TIMES_PER_WEEK flexible quota (e.g., "gym 4× any days")
-- Implement undo/accidental tap protection for task completion
-- Add visual distinction for overdue tasks
+- TIMES_PER_WEEK flexible quota (e.g., "gym 4× any days")
 
 ## Blocked / needs research
-- Exact deployment host selection (requirements documented in README;
-  any persistent-filesystem host works, serverless excluded)
+- Exact deployment host selection (persistent-FS required, serverless excluded)
+- Native app: background sync strategy, conflict resolution
 
 ## Known issues
 - No UI for backfilling missed past occurrences (API accepts any date)
+- Native Xcode projects need manual open in Xcode.app (xcodebuild timeout env issue)
