@@ -1,10 +1,9 @@
 # STATE — <!-- updated: 2026-09-18 -->
 
 ## Current focus
-Sprint 3 complete: production hardening done (tsc zero, hermetic CI with
-E2E, canonical seed, deployable SQLite config). Native iOS/macOS
-foundation scaffolded with Xcode projects, ScoreDayCore package, and
-SwiftUI views.
+Native macOS app is buildable and runs against the local API (XcodeGen
+project, models aligned to real API JSON). Next: finish macOS UX gaps,
+then scaffold the iOS project the same way.
 
 ## Shape
 ```mermaid
@@ -33,22 +32,31 @@ flowchart TD
 - **A11y/mobile** — 44px targets, dialog roles, Escape handling, zero-overflow at 390px
 - **Sprint 3 prod hardening** — tsc zero, hermetic CI (install→generate→lint→tsc→unit→build→E2E), canonical seed, DATABASE_URL honored, dead deps pruned
 - **98 unit / 33 E2E tests passing**, lint clean, build successful
+- **Native macOS app builds & runs** — XcodeGen project (`native/macOS/project.yml`), ~30 compile errors fixed,
+  Swift models match API JSON (flat Task recurrence, `YYYY-MM-DD` dates, week/month bundles), 41 ScoreDayCore
+  tests incl. API contract suite; fixed weekdayZeroBased (Mon=0 → Sun=0) and UTC day-shift in LocalDate.parse
+- **`GET /api/dashboard`** — single endpoint for native Today screen (`getDashboardData`)
 
 ## In progress
-- Native macOS app: Xcode project + ScoreDayCore framework + 14 SwiftUI views/viewmodels
-- Native iOS app: parallel Xcode project structure
-- ScoreDayCore Swift Package (Models, ScoringEngine, Persistence, SyncManager)
+- Web (uncommitted): dashboard checkbox complete/undo with optimistic UI, TaskForm changes,
+  task soft-delete (`DELETE /api/tasks/[id]` sets `active: false`), scoring.ts tweaks
+- Native iOS app: sources only, needs an XcodeGen `project.yml` like macOS
 
 ## Next up
-- Wire native apps to API (GRDB local cache + sync)
-- Implement SwiftUI view logic + viewmodel functionality
+- macOS UX gaps: prefill edit form, live-apply API URL setting
+- Decide whether to keep GRDB local cache (compiled, unused) or drop it
 - Visual/product redesign phase (UI/UX improvements)
 - TIMES_PER_WEEK flexible quota (e.g., "gym 4× any days")
 
 ## Blocked / needs research
 - Exact deployment host selection (persistent-FS required, serverless excluded)
 - Native app: background sync strategy, conflict resolution
+- ADR not yet recorded: XcodeGen-generated Xcode projects (hand-written pbxproj crashed xcodebuild)
 
 ## Known issues
 - No UI for backfilling missed past occurrences (API accepts any date)
-- Native Xcode projects need manual open in Xcode.app (xcodebuild timeout env issue)
+- **Uncommitted `PUT /api/tasks/[id]` writes raw `body` — validateRecurrenceInput removed (mass-assignment risk)**
+- macOS: open `native/ScoreDay.xcworkspace`; needs the Next dev server on :3000
+- macOS: editing a task opens the form with empty fields (TaskFormViewMac doesn't prefill from `editingTask`)
+- macOS: API base URL change in Settings only applies after relaunch
+- macOS: GRDB local cache is compiled but unused (views call the API directly)

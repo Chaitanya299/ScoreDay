@@ -1,0 +1,396 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0939FE0B5E41A20BF8C665A7 /* ProgressViewModelMac.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C21754462AEAAAC1653C960 /* ProgressViewModelMac.swift */; };
+		21D48459AFE118C5517AA2C1 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BBFB22F94B831BC93A94D3 /* SettingsView.swift */; };
+		571756100E35581B544C5BF2 /* TodayViewModelMac.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0A53BB20AAD6B40CEF2E39C /* TodayViewModelMac.swift */; };
+		62AF8074058041F98E6FC9AC /* TasksViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E3ECC375AC3E894B1A5CC21 /* TasksViewModel.swift */; };
+		7414E1D20D89415D8B277179 /* ProgressComponents2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6852B2BC813F9460F19EF262 /* ProgressComponents2.swift */; };
+		8459ED8668EA0E87DA25487F /* ScoreDayApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AFBCC125BD07D6A2A56E425 /* ScoreDayApp.swift */; };
+		8C7155859DEE399ECD67B4C0 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C3CA5AF8C924AD970454643 /* TodayView.swift */; };
+		8DE6AD4036C1C4731245446B /* ProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62E6287E566E7A31BD46261C /* ProgressView.swift */; };
+		909B7CF5C9AA83908473CBFF /* ProgressComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69FEC1EFC8C264232D8D439A /* ProgressComponents.swift */; };
+		A0DFA5CE9259C542E824036A /* StylesMac.swift in Sources */ = {isa = PBXBuildFile; fileRef = 964828D868C9A81BFB4842B0 /* StylesMac.swift */; };
+		AAEFDF4866359AD89198900F /* ScoreDayCore in Frameworks */ = {isa = PBXBuildFile; productRef = B418F6C5649C4C6C61DAA08C /* ScoreDayCore */; };
+		BC292971A816454911FD2EF7 /* TasksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C05A99D958719E23B5A5B35 /* TasksView.swift */; };
+		D75CA0F6EB99923D4E33B7C4 /* TaskFormViewMac.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1671B419403B4CA5D4E555DD /* TaskFormViewMac.swift */; };
+		DD4B89242EEC53F8B4AB218A /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03EAA7313A8EC2ECBCD264C2 /* ContentView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		03EAA7313A8EC2ECBCD264C2 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		1671B419403B4CA5D4E555DD /* TaskFormViewMac.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskFormViewMac.swift; sourceTree = "<group>"; };
+		16BBFB22F94B831BC93A94D3 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		5C3CA5AF8C924AD970454643 /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
+		62E6287E566E7A31BD46261C /* ProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressView.swift; sourceTree = "<group>"; };
+		6852B2BC813F9460F19EF262 /* ProgressComponents2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressComponents2.swift; sourceTree = "<group>"; };
+		69FEC1EFC8C264232D8D439A /* ProgressComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressComponents.swift; sourceTree = "<group>"; };
+		6C21754462AEAAAC1653C960 /* ProgressViewModelMac.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressViewModelMac.swift; sourceTree = "<group>"; };
+		6E3ECC375AC3E894B1A5CC21 /* TasksViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TasksViewModel.swift; sourceTree = "<group>"; };
+		713C537A806801A82335E874 /* ScoreDayCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ScoreDayCore; path = ../ScoreDayCore; sourceTree = SOURCE_ROOT; };
+		7AFBCC125BD07D6A2A56E425 /* ScoreDayApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScoreDayApp.swift; sourceTree = "<group>"; };
+		7C05A99D958719E23B5A5B35 /* TasksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TasksView.swift; sourceTree = "<group>"; };
+		964828D868C9A81BFB4842B0 /* StylesMac.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StylesMac.swift; sourceTree = "<group>"; };
+		C26D02278CBF26C9441063FA /* ScoreDay.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ScoreDay.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D0A53BB20AAD6B40CEF2E39C /* TodayViewModelMac.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayViewModelMac.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		75D682ED927AB66CC4E7B381 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AAEFDF4866359AD89198900F /* ScoreDayCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0E8CD043B71F17AE6A22B2F2 /* macOS */ = {
+			isa = PBXGroup;
+			children = (
+				7AFBCC125BD07D6A2A56E425 /* ScoreDayApp.swift */,
+				5BA6302A0EF4B057AD29D6C3 /* ViewModels */,
+				92A9E928D17D652C728E648F /* Views */,
+			);
+			name = macOS;
+			path = .;
+			sourceTree = "<group>";
+		};
+		4D4AE42DB49A52D7017398BB = {
+			isa = PBXGroup;
+			children = (
+				0E8CD043B71F17AE6A22B2F2 /* macOS */,
+				F13FC2A60C9DBA52AFFEDFE6 /* Packages */,
+				5BA6302A0EF4B057AD29D6C3 /* ViewModels */,
+				92A9E928D17D652C728E648F /* Views */,
+				AE158F72A00ECA24158E2140 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		5BA6302A0EF4B057AD29D6C3 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				6C21754462AEAAAC1653C960 /* ProgressViewModelMac.swift */,
+				6E3ECC375AC3E894B1A5CC21 /* TasksViewModel.swift */,
+				D0A53BB20AAD6B40CEF2E39C /* TodayViewModelMac.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		92A9E928D17D652C728E648F /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				03EAA7313A8EC2ECBCD264C2 /* ContentView.swift */,
+				69FEC1EFC8C264232D8D439A /* ProgressComponents.swift */,
+				6852B2BC813F9460F19EF262 /* ProgressComponents2.swift */,
+				62E6287E566E7A31BD46261C /* ProgressView.swift */,
+				16BBFB22F94B831BC93A94D3 /* SettingsView.swift */,
+				964828D868C9A81BFB4842B0 /* StylesMac.swift */,
+				1671B419403B4CA5D4E555DD /* TaskFormViewMac.swift */,
+				7C05A99D958719E23B5A5B35 /* TasksView.swift */,
+				5C3CA5AF8C924AD970454643 /* TodayView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		AE158F72A00ECA24158E2140 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C26D02278CBF26C9441063FA /* ScoreDay.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		F13FC2A60C9DBA52AFFEDFE6 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				713C537A806801A82335E874 /* ScoreDayCore */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		9054C669424F47E5FC2FE993 /* ScoreDay */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A79CCA21D6D8C9246EE18DA6 /* Build configuration list for PBXNativeTarget "ScoreDay" */;
+			buildPhases = (
+				E0DDB1827EB02F33637CC050 /* Sources */,
+				75D682ED927AB66CC4E7B381 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ScoreDay;
+			packageProductDependencies = (
+				B418F6C5649C4C6C61DAA08C /* ScoreDayCore */,
+			);
+			productName = ScoreDay;
+			productReference = C26D02278CBF26C9441063FA /* ScoreDay.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		C6FAAE56F666D18FC43EA201 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = F797EB623B7C28A3A2DADADC /* Build configuration list for PBXProject "ScoreDay-macOS" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 4D4AE42DB49A52D7017398BB;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				8603AE1938C2BDC754C1240F /* XCLocalSwiftPackageReference "../ScoreDayCore" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = AE158F72A00ECA24158E2140 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				9054C669424F47E5FC2FE993 /* ScoreDay */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		E0DDB1827EB02F33637CC050 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DD4B89242EEC53F8B4AB218A /* ContentView.swift in Sources */,
+				909B7CF5C9AA83908473CBFF /* ProgressComponents.swift in Sources */,
+				7414E1D20D89415D8B277179 /* ProgressComponents2.swift in Sources */,
+				8DE6AD4036C1C4731245446B /* ProgressView.swift in Sources */,
+				0939FE0B5E41A20BF8C665A7 /* ProgressViewModelMac.swift in Sources */,
+				8459ED8668EA0E87DA25487F /* ScoreDayApp.swift in Sources */,
+				21D48459AFE118C5517AA2C1 /* SettingsView.swift in Sources */,
+				A0DFA5CE9259C542E824036A /* StylesMac.swift in Sources */,
+				D75CA0F6EB99923D4E33B7C4 /* TaskFormViewMac.swift in Sources */,
+				BC292971A816454911FD2EF7 /* TasksView.swift in Sources */,
+				62AF8074058041F98E6FC9AC /* TasksViewModel.swift in Sources */,
+				8C7155859DEE399ECD67B4C0 /* TodayView.swift in Sources */,
+				571756100E35581B544C5BF2 /* TodayViewModelMac.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		0224116855D77C7FC9024349 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "-";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = NO;
+				INFOPLIST_FILE = Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.scoreday.macos;
+				PRODUCT_NAME = ScoreDay;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		1CAB59964F874FB62F39C9C6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		2788BACCA3BE4D15B28D77AD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		D9942BA13EBEA164D8FD1B04 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "-";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = NO;
+				INFOPLIST_FILE = Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.scoreday.macos;
+				PRODUCT_NAME = ScoreDay;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A79CCA21D6D8C9246EE18DA6 /* Build configuration list for PBXNativeTarget "ScoreDay" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0224116855D77C7FC9024349 /* Debug */,
+				D9942BA13EBEA164D8FD1B04 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		F797EB623B7C28A3A2DADADC /* Build configuration list for PBXProject "ScoreDay-macOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1CAB59964F874FB62F39C9C6 /* Debug */,
+				2788BACCA3BE4D15B28D77AD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		8603AE1938C2BDC754C1240F /* XCLocalSwiftPackageReference "../ScoreDayCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../ScoreDayCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		B418F6C5649C4C6C61DAA08C /* ScoreDayCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ScoreDayCore;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = C6FAAE56F666D18FC43EA201 /* Project object */;
+}

@@ -1,0 +1,19 @@
+// Debug.xcconfig
+// Debug configuration for ScoreDayCore
+
+// API Configuration
+API_BASE_URL = http://localhost:3000
+
+// Build Settings
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG
+ENABLE_TESTABILITY = YES
+SWIFT_OPTIMIZATION_LEVEL = -Onone
+
+// Code Signing (development)
+CODE_SIGN_IDENTITY = -
+CODE_SIGNING_REQUIRED = NO
+CODE_SIGNING_ALLOWED = NO
+
+// Deployment
+IPHONEOS_DEPLOYMENT_TARGET = 17.0
+MACOSX_DEPLOYMENT_TARGET = 14.0

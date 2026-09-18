@@ -1,0 +1,19 @@
+// Release.xcconfig
+// Release configuration for ScoreDayCore
+
+// API Configuration
+API_BASE_URL = https://api.scoreday.app
+
+// Build Settings
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = RELEASE
+ENABLE_TESTABILITY = NO
+SWIFT_OPTIMIZATION_LEVEL = -O
+
+// Code Signing (will be configured per developer/team)
+// CODE_SIGN_IDENTITY = Apple Development
+// DEVELOPMENT_TEAM = YOUR_TEAM_ID
+// PROVISIONING_PROFILE_SPECIFIER =
+
+// Deployment
+IPHONEOS_DEPLOYMENT_TARGET = 17.0
+MACOSX_DEPLOYMENT_TARGET = 14.0
