@@ -1,9 +1,9 @@
-# STATE — <!-- updated: 2026-09-06 -->
+# STATE — <!-- updated: 2026-09-29 -->
 
 ## Current focus
-Sprint 3 complete: production hardening done (tsc zero, hermetic CI with
-E2E, canonical seed, deployable SQLite config). ScoreDay is ready for
-first deployment on persistent-filesystem hosting.
+Railway 24/7 deploy is prepared and rehearsed end-to-end locally (prod build with no DB,
+`migrate deploy` onto an empty volume, token auth, lossless data restore). Next: merge the PR,
+create the Railway project (user's account/billing), then point the Mac app at it.
 
 ## Shape
 ```mermaid
@@ -21,94 +21,48 @@ flowchart TD
     C --> L[Client Components<br/>'use client']
 ```
 
-## Done
-- Implemented deterministic recurrence engine with 4 core types (DAILY, SPECIFIC_DAYS, WEEKLY, ONE_TIME)
-- Added comprehensive test suite for recurrence logic (17 tests)
-- Migrated legacy frequency system to new model preserving all completion history
-- Established Architecture Decision Record (ADR) practice with 6 decisions recorded
-- Added nanoid for client-side ID generation
-- Added Zod for request validation
-- Upgraded lodash to latest version
-- Completed frequency system redesign: Apple Reminders-inspired UI with single Repeat row → sheet/modal
-- Added WEEKLY_GOAL (any day during week) and CUSTOM recurrence types
-- Implemented human-readable recurrence formatting (formatRecurrence)
-- **Added Progress/History feature: /progress page with weekly/monthly views, summary cards, activity calendar, monthly trend charts**
-- 57 unit tests passing (17 recurrence + 40 progress)
-- 16 Playwright E2E tests passing
-- Lint clean, build successful
-- **Sprint: score-semantics audit + fixes (ADR-0007)** — weekly goals out of
-  all daily denominators (Mon max 28, week max 148 on reference dataset);
-  certain-days tasks complete per calendar date (date occurrence keys);
-  dashboard weekly max counts per scheduled day; dashboard streak redefined
-  as consecutive 100% scheduled days (delegates to new `lib/streaks.ts`)
-- **Day Detail experience** — clickable calendar/week days open a modal with
-  score, earned/max, completed + missed tasks (`getDayDetail` + new
-  `/api/progress/day` route)
-- **Consistency section on Progress** — Current Streak / Best Streak /
-  Consistency % via `getStreakData` (batched queries, no-task days skipped)
-- **Working week view** — Mon-Sun breakdown + weekly total with real
-  prev/next week navigation (`/api/progress/week`); month prev/next now
-  refetches via `/api/progress/month` (previously label-only)
-- **Legacy data cleanup** — dev rows migrated to canonical recurrence types;
-  corrupt unix-timestamp `startDate` values repaired; engine ignores
-  malformed date bounds instead of silently zeroing schedules
-- **XP/Level removal** — verified absent from code; removed stale leveling
-  docs from README
-- **Task form cleanup** — removed redundant Every day/Weekdays/Weekends
-  shortcut links under the weekday picker
-- **Mobile/a11y** — fixed 21px horizontal overflow on Progress (wrapping
-  period controls); calendar days are real buttons with labels; day modal
-  has dialog role, labelled close, and Escape handling; 44px touch targets
-  on nav controls
-- 73 unit tests passing (18 recurrence + 14 streaks + 41 progress)
-- 26 Playwright E2E tests passing (incl. day detail, week/month nav data
-  reload, streak display, XP absence, mobile overflow)
-- Lint clean, build successful
-- **Sprint 2: performance sections + undo + CI (ADR-0008)**
-- Task/Category/Missed sections rendered on Progress, period-scoped to the
-  active week/month (server-aggregated, weakest-first + name tiebreak)
-- Missed clamped to fully-past occurrences (today is actionable, not missed)
-- Completion undo: DELETE /api/completions (record removal, never point
-  mutation; already-undone converges without error state) + optimistic Undo
-  button on Today with reload-rollback
-- Global keyboard focus-visible styling + prefers-reduced-motion guard
-- Today/Tasks verified zero-overflow at 390px
-- CI pipeline (install, generate, lint, unit, build, Playwright vs next
-  start) + playwright.config.ts scoping E2E to *.spec.ts
-- 98 unit tests passing (18 recurrence + 14 streaks + 13 performance +
-  41 progress + 12 completions)
-- 33 Playwright E2E tests passing (complete→undo→complete-again round trip
-  with score-delta check, net-zero DB impact; Escape dialog; future-week
-  empty missed state)
-- Lint clean, build successful
-- Not committed: local dev.db page churn from test runs (net-zero rows)
-- **Sprint 3: production hardening (no scope expansion)**
-- tsc zero errors (fixed 8 pre-existing old-test mock type errors)
-- CI enforces install → generate → lint → tsc → unit → build → Playwright
-- dev.db untracked (runtime artifact); tracked scoring.ts.bak removed
-- Seed rewritten: canonical types + 14 days relative history; CI migrates
-  + seeds hermetically (verified: 33/33 E2E on fresh seeded DB and on
-  production server)
-- DATABASE_URL now honored (`env()` in schema; was hardcoded); absolute
-  paths required in production; relative env paths resolve CWD-relative
-- Dead deps pruned (lodash, pg, nanoid, zod — zero imports)
-- Deployment docs in README (VPS/Fly+volume recommended; serverless excluded)
+## Done (condensed)
+- **Web core (Sprints 1–3)** — recurrence engine, progress/history, streaks, day detail, working week,
+  undo, performance sections, a11y, prod hardening + hermetic CI (98 unit / 33 E2E tests)
+- **Native macOS app** — XcodeGen project (`native/macOS/project.yml`, generated `Info.plist` now
+  tracked); Swift models match API JSON (contract tests); ‹ day › nav to check/uncheck any past day;
+  outages show "Can't reach server" instead of a fake empty list; undo sends a JSON body (was a 500) —
+  42 ScoreDayCore tests
+- **Fixed the weekly dev-server crash** — GBs of Xcode/SwiftPM build output under `native/` were scanned
+  by the web toolchain (tsconfig excluded only node_modules): dev crashed with `RangeError: Invalid array
+  length` compiling `/_not-found`, `next build` ran out of memory. Fenced off via tsconfig `exclude` +
+  Tailwind `@source not "../native"`; Xcode builds now go to the default DerivedData outside the repo
+- **Railway-ready** — `railway.json` (1 replica, restart on failure); `start:prod` =
+  `prisma migrate deploy && next start -p $PORT`; `build` runs `prisma generate`; `prisma` is a runtime
+  dependency; Node >=22; `middleware.ts` bearer-token guard on `/api/*` when `API_TOKEN` is set (open for
+  local dev); `GET /api/dashboard[?date=]`; soft-delete `DELETE /api/tasks/[id]`
+- **Lossless migration** — `npm run db:export` → `npm run db:import` → one-shot `POST /api/admin/restore`
+  (token-only, refuses a non-empty DB); rehearsed: 13 tasks / 12 completions identical
+- **Mac app auth** — token in Keychain; Settings has token field + working Test Connection; a 401 says
+  "token rejected", not "can't reach server"
+- **Recovered from folder loss (Sep 28)** — project folder was moved to Trash and lost; re-cloned from
+  GitHub and redone; `dev.db` rescued intact from the still-running server's open file handle
+  (backup in `~/ScoreDay-rescue/`). The user's own uncommitted web edits from before Sep 18 were lost
 
 ## In progress
-- Finalizing verification of Repeat sheet/modal UI on desktop and mobile
-- Ensuring all edge cases handled for custom intervals (leap years, month boundaries)
-- Validating scoring behavior for Weekly Goal type (points awarded once per week)
-- Testing duplicate completion prevention across all recurrence types
+- **Railway setup (user action)** — new project from the GitHub repo, volume at `/data`, env
+  `DATABASE_URL=file:/data/prod.db` + `API_TOKEN`; then `db:export`/`db:import`; then URL + token in the app
+- Native iOS app: sources only, needs an XcodeGen `project.yml` like macOS
 
 ## Next up
-- Visual/product redesign phase (UI/UX improvements)
-- Consider adding TIMES_PER_WEEK flexible quota (e.g., "gym 4× any days")
-- Implement undo/accidental tap protection for task completion
-- Add visual distinction for overdue tasks
+- macOS UX gaps: prefill edit form, apply server URL/token without relaunch
+- GRDB local cache (compiled, unused): wire for offline use or drop it — less urgent once hosted
+- Visual/product redesign phase
+- TIMES_PER_WEEK flexible quota (e.g., "gym 4× any days")
 
 ## Blocked / needs research
-- Exact deployment host selection (requirements documented in README;
-  any persistent-filesystem host works, serverless excluded)
+- Native app: background sync strategy, conflict resolution
+- ADRs not yet recorded: XcodeGen-generated Xcode projects; Railway + SQLite-on-volume + shared-token auth
 
 ## Known issues
-- No UI for backfilling missed past occurrences (API accepts any date)
+- Local dev: run `npm run dev` (localhost only) and keep the project out of folders that get cleaned
+- SQLite on a volume = single instance only; turn on Railway volume backups
+- Ad-hoc–signed Mac app: macOS may ask to allow Keychain access after a rebuild ("Always Allow")
+- `PUT /api/tasks/[id]` is full-replace: omitted fields (e.g. category) are cleared; clients send all fields
+- macOS: editing a task opens the form with empty fields
+- Web app has no UI for back-filling past days (the Mac app does)

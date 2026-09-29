@@ -1,0 +1,30 @@
+name: ScoreDay-macOS
+options:
+  deploymentTarget:
+    macOS: "14.0"
+packages:
+  ScoreDayCore:
+    path: ../ScoreDayCore
+targets:
+  ScoreDay:
+    type: application
+    platform: macOS
+    sources:
+      - path: .
+        includes: ["ScoreDayApp.swift", "Views", "ViewModels"]
+    dependencies:
+      - package: ScoreDayCore
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: ScoreDay
+        LSApplicationCategoryType: public.app-category.productivity
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true # debug build talks to http://localhost:3000
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: app.scoreday.macos
+      PRODUCT_NAME: ScoreDay
+      MARKETING_VERSION: "0.1.0"
+      CURRENT_PROJECT_VERSION: "1"
+      CODE_SIGN_IDENTITY: "-" # ad-hoc; set a team for distribution
+      ENABLE_HARDENED_RUNTIME: NO

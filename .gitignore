@@ -50,3 +50,16 @@ playwright/.cache
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# native (Xcode/Swift)
+native/.build/
+native/DerivedData/
+native/*.xcworkspace/xcuserdata/
+native/*.xcodeproj/xcuserdata/
+native/ScoreDayCore/.build/
+native/ScoreDayCore/.swiftpm/
+native/ScoreDayCore/Tests/.build/
+native/macOS/build/
+
+# personal data exported for migration — never commit (public repo)
+scripts/scoreday-export.json

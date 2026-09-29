@@ -4,10 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
+    "start:prod": "prisma migrate deploy && next start -p ${PORT:-3000}",
     "lint": "next lint",
     "db:generate": "prisma generate",
+    "db:export": "ts-node --compiler-options '{\"module\":\"commonjs\"}' scripts/export-data.ts",
+    "db:import": "ts-node --compiler-options '{\"module\":\"commonjs\"}' scripts/import-data.ts",
     "db:migrate": "prisma migrate dev",
     "db:seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' prisma/seed.ts",
     "db:studio": "prisma studio",
@@ -17,6 +20,7 @@
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "next": "^15.5.24",
+    "prisma": "^5.22.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "recharts": "^3.10.1"
@@ -28,10 +32,12 @@
     "@types/react": "^19.0.0",
     "eslint": "^9.0.0",
     "eslint-config-next": "15.3.2",
-    "prisma": "^5.22.0",
     "tailwindcss": "^4.1.8",
     "ts-node": "^10.9.2",
     "typescript": "^5.0.0",
     "vitest": "^4.1.11"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }
