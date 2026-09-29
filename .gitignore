@@ -60,4 +60,6 @@ native/ScoreDayCore/.build/
 native/ScoreDayCore/.swiftpm/
 native/ScoreDayCore/Tests/.build/
 native/macOS/build/
-native/macOS/Info.plist
+
+# personal data exported for migration — never commit (public repo)
+scripts/scoreday-export.json

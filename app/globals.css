@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* The Swift app (and its GBs of build output) is not part of the web UI. */
+@source not "../native";
 
 :root {
   --background: #ffffff;

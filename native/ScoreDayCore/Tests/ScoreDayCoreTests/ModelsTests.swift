@@ -412,3 +412,46 @@ struct APIContractTests {
         #expect(d.missedTasks.count == 1)
     }
 }
+
+// Regression: undo must send taskId/dateStr in the JSON BODY (the DELETE handler
+// reads the body). A previous version sent query params only → server 500.
+final class CapturingURLProtocol: URLProtocol {
+    nonisolated(unsafe) static var lastRequest: URLRequest?
+    nonisolated(unsafe) static var lastBody: Data?
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        CapturingURLProtocol.lastRequest = request
+        CapturingURLProtocol.lastBody = request.httpBody
+            ?? request.httpBodyStream.map { s -> Data in
+                s.open(); defer { s.close() }
+                var data = Data(); var buf = [UInt8](repeating: 0, count: 4096)
+                while s.hasBytesAvailable { let n = s.read(&buf, maxLength: buf.count); if n <= 0 { break }; data.append(buf, count: n) }
+                return data
+            }
+        let resp = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+        client?.urlProtocol(self, didReceive: resp, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data(#"{"success":true,"undone":1}"#.utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+    override func stopLoading() {}
+}
+
+@Suite("Completion wire format")
+struct CompletionWireTests {
+    @Test("undo sends taskId/dateStr in the body, not the query")
+    func undoUsesBody() async throws {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [CapturingURLProtocol.self]
+        let client = APIClient(baseURL: URL(string: "http://localhost:3000")!, session: URLSession(configuration: config))
+        _ = try await CompletionService(client: client).undo(taskId: "abc", date: LocalDate(year: 2026, month: 9, day: 19))
+
+        let req = try #require(CapturingURLProtocol.lastRequest)
+        #expect(req.httpMethod == "DELETE")
+        #expect(req.url?.query == nil)  // no query params
+        let body = try #require(CapturingURLProtocol.lastBody)
+        let json = try JSONSerialization.jsonObject(with: body) as? [String: Any]
+        #expect(json?["taskId"] as? String == "abc")
+        #expect(json?["dateStr"] as? String == "2026-09-19")
+    }
+}

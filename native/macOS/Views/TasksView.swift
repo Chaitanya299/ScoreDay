@@ -26,7 +26,9 @@ struct TasksView: View {
 
             // Task List
             Group {
-                if viewModel.tasks.isEmpty {
+                if viewModel.loadFailed {
+                    ServerUnreachableMac { await viewModel.load() }
+                } else if viewModel.tasks.isEmpty {
                     EmptyTasksViewMac(onCreate: { viewModel.showCreateForm = true })
                 } else {
                     Table(viewModel.tasks) {
@@ -145,6 +147,36 @@ struct EmptyTasksViewMac: View {
             .frame(width: 280)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// Shown when the API can't be reached, so an outage never looks like data loss.
+struct ServerUnreachableMac: View {
+    let onRetry: () async -> Void
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "wifi.exclamationmark")
+                .font(.system(size: 56))
+                .foregroundStyle(Color(hex: 0xF59E0B))
+
+            VStack(spacing: 8) {
+                Text("Can't reach the server")
+                    .font(.title2)
+                    .fontWeight(.bold)
+
+                Text("Your tasks are safe — this is a connection problem, not data loss. Make sure the ScoreDay server is running, then retry.")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 420)
+            }
+
+            Button("Retry") { _Concurrency.Task { await onRetry() } }
+                .buttonStyle(.borderedProminent)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(40)
     }
 }
 

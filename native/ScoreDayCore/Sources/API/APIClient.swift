@@ -38,11 +38,14 @@ public enum APIError: Error, LocalizedError, Sendable {
 public actor APIClient {
     public let baseURL: URL
     private let session: URLSession
+    private let token: String?
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
 
-    public init(baseURL: URL, session: URLSession = .shared) {
+    /// `token` is sent as `Authorization: Bearer <token>` (required by the deployed server).
+    public init(baseURL: URL, token: String? = nil, session: URLSession = .shared) {
         self.baseURL = baseURL
+        self.token = token
         self.session = session
         self.decoder = JSONDecoder()
         self.decoder.dateDecodingStrategy = .iso8601
@@ -74,11 +77,19 @@ public actor APIClient {
         return try await request(components.url!, method: "DELETE", body: nil as String?)
     }
 
+    /// DELETE with a JSON body (some endpoints, e.g. /api/completions, read the body).
+    public func delete<T: Decodable, B: Encodable>(_ path: String, body: B) async throws -> T {
+        return try await request(baseURL.appendingPathComponent(path), method: "DELETE", body: body)
+    }
+
     private func request<T: Decodable, B: Encodable>(_ url: URL, method: String, body: B?) async throws -> T {
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let token, !token.isEmpty {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
 
         if let body = body {
             request.httpBody = try encoder.encode(body)

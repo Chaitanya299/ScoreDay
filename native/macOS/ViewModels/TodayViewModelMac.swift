@@ -18,6 +18,11 @@ final class TodayViewModel: ObservableObject {
     @Published var loadingTaskId: String? = nil
     @Published var showError = false
     @Published var errorMessage: String? = nil
+    @Published var loadFailed = false
+    /// The day being viewed. Defaults to today; past days can be reviewed and back-filled.
+    @Published var selectedDate: LocalDate = .today()
+
+    var isToday: Bool { selectedDate == .today() }
 
     private let dashboardService: DashboardService
     private let completionService: CompletionService
@@ -31,10 +36,24 @@ final class TodayViewModel: ObservableObject {
         await refresh()
     }
 
+    func goToPreviousDay() {
+        selectedDate = selectedDate.adding(days: -1) ?? selectedDate
+    }
+
+    func goToNextDay() {
+        guard !isToday, let next = selectedDate.adding(days: 1) else { return }  // never go past today
+        selectedDate = next
+    }
+
+    func goToToday() {
+        selectedDate = .today()
+    }
+
     func refresh() async {
         do {
-            let dashboard = try await dashboardService.fetchDashboard()
+            let dashboard = try await dashboardService.fetchDashboard(date: isToday ? nil : selectedDate)
             await MainActor.run {
+                self.loadFailed = false
                 self.tasks = dashboard.taskList
                 self.upcomingTasks = dashboard.upcomingList
                 self.weeklyOverview = dashboard.weeklyOverview
@@ -49,7 +68,8 @@ final class TodayViewModel: ObservableObject {
                 self.streak = dashboard.streak
             }
         } catch {
-            showError("Failed to load dashboard: \(error.localizedDescription)")
+            loadFailed = true
+            showError(loadErrorMessage(error))
         }
     }
 
@@ -58,10 +78,11 @@ final class TodayViewModel: ObservableObject {
         defer { loadingTaskId = nil }
 
         do {
-            if task.statusForToday == .completed {
-                _ = try await completionService.undo(taskId: task.id)
+            let completed = task.statusForToday == .completed || task.statusForToday == .satisfied
+            if completed {
+                _ = try await completionService.undo(taskId: task.id, date: selectedDate)
             } else {
-                _ = try await completionService.complete(taskId: task.id)
+                _ = try await completionService.complete(taskId: task.id, date: selectedDate)
             }
             await refresh()
         } catch {
@@ -71,5 +92,6 @@ final class TodayViewModel: ObservableObject {
 
     private func showError(_ message: String) {
         errorMessage = message
+        showError = true
     }
 }

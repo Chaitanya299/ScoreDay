@@ -86,6 +86,7 @@ final class ProgressViewModel: ObservableObject {
 
     private func showError(_ message: String) {
         errorMessage = message
+        showError = true
     }
 }
 

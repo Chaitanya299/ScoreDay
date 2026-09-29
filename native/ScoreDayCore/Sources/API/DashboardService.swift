@@ -7,8 +7,12 @@ public actor DashboardService {
         self.client = client
     }
 
-    public func fetchDashboard() async throws -> DashboardData {
-        try await client.get("/api/dashboard")
+    /// Pass a date to get that day's scoreboard; omit for today.
+    public func fetchDashboard(date: LocalDate? = nil) async throws -> DashboardData {
+        if let date {
+            return try await client.get("/api/dashboard", query: ["date": date.isoString])
+        }
+        return try await client.get("/api/dashboard")
     }
 }
 

@@ -33,3 +33,27 @@ export async function PUT(
     return NextResponse.json({ error: 'Failed to update task' }, { status: 500 })
   }
 }
+
+export async function DELETE(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await context.params
+
+    const existing = await prisma.task.findUnique({ where: { id } })
+    if (!existing) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+    }
+
+    // Soft delete: keep the row so historical completions stay valid for scoring.
+    const task = await prisma.task.update({
+      where: { id },
+      data: { active: false },
+    })
+
+    return NextResponse.json({ success: true, task })
+  } catch {
+    return NextResponse.json({ error: 'Failed to delete task' }, { status: 500 })
+  }
+}

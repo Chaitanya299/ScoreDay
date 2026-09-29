@@ -11,6 +11,8 @@ final class TasksViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var showError = false
     @Published var errorMessage: String? = nil
+    @Published var loadFailed = false
+    @Published var hasLoaded = false
 
     private let taskService: TaskService
 
@@ -25,9 +27,12 @@ final class TasksViewModel: ObservableObject {
             let tasks = try await taskService.list()
             await MainActor.run {
                 self.tasks = tasks.filter { $0.active }
+                self.loadFailed = false
+                self.hasLoaded = true
             }
         } catch {
-            showError("Failed to load tasks: \(error.localizedDescription)")
+            loadFailed = true
+            showError(loadErrorMessage(error))
         }
     }
 
@@ -82,5 +87,6 @@ final class TasksViewModel: ObservableObject {
 
     private func showError(_ message: String) {
         errorMessage = message
+        showError = true
     }
 }

@@ -13,11 +13,8 @@ public actor CompletionService {
     }
 
     public func undo(taskId: String, date: LocalDate = LocalDate.today()) async throws -> UndoResponse {
-        let request = UndoRequest(taskId: taskId, dateStr: date.isoString)
-        return try await client.delete("/api/completions", query: [
-            "taskId": taskId,
-            "dateStr": date.isoString
-        ])
+        // Body, not query: the DELETE handler reads taskId/dateStr from the JSON body.
+        return try await client.delete("/api/completions", body: UndoRequest(taskId: taskId, dateStr: date.isoString))
     }
 }
 

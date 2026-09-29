@@ -10,34 +10,42 @@ struct TodayView: View {
         _viewModel = StateObject(wrappedValue: viewModel)
     }
 
+    @ViewBuilder
+    private var loadedContent: some View {
+        ScoreCard(
+            earned: viewModel.earnedToday,
+            max: viewModel.maxDaily,
+            percentage: viewModel.dailyPercentage,
+            completedCount: viewModel.completedCount,
+            incompleteCount: viewModel.incompleteCount,
+            streak: viewModel.streak
+        )
+
+        HStack(alignment: .top, spacing: 24) {
+            TasksSection(viewModel: viewModel)
+                .frame(maxWidth: .infinity)
+
+            VStack(spacing: 24) {
+                WeeklySummarySection(viewModel: viewModel)
+
+                if !viewModel.upcomingTasks.isEmpty {
+                    ComingUpSection(tasks: viewModel.upcomingTasks)
+                }
+            }
+            .frame(width: 350)
+        }
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                // Today's Score Card
-                ScoreCard(
-                    earned: viewModel.earnedToday,
-                    max: viewModel.maxDaily,
-                    percentage: viewModel.dailyPercentage,
-                    completedCount: viewModel.completedCount,
-                    incompleteCount: viewModel.incompleteCount,
-                    streak: viewModel.streak
-                )
+                DayNavHeader(viewModel: viewModel)
 
-                // Today's Tasks & Weekly Summary side by side
-                HStack(alignment: .top, spacing: 24) {
-                    // Today's Tasks
-                    TasksSection(viewModel: viewModel)
-                        .frame(maxWidth: .infinity)
-
-                    // Weekly Summary + Coming Up
-                    VStack(spacing: 24) {
-                        WeeklySummarySection(viewModel: viewModel)
-
-                        if !viewModel.upcomingTasks.isEmpty {
-                            ComingUpSection(tasks: viewModel.upcomingTasks)
-                        }
-                    }
-                    .frame(width: 350)
+                if viewModel.loadFailed {
+                    ServerUnreachableMac { await viewModel.refresh() }
+                        .frame(minHeight: 400)
+                } else {
+                    loadedContent
                 }
             }
             .padding(24)
@@ -68,6 +76,46 @@ struct TodayView: View {
             .task {
                 await viewModel.load()
             }
+            .onChange(of: viewModel.selectedDate) { _, _ in
+                _Concurrency.Task { await viewModel.refresh() }
+            }
+        }
+    }
+}
+
+/// ‹ [day] › navigation so any past day can be reviewed and back-filled.
+struct DayNavHeader: View {
+    @ObservedObject var viewModel: TodayViewModel
+
+    private var label: String {
+        if viewModel.isToday { return "Today" }
+        return viewModel.selectedDate.date.map { DateFormatter.fullDate.string(from: $0) }
+            ?? viewModel.selectedDate.isoString
+    }
+
+    var body: some View {
+        HStack(spacing: 16) {
+            Button { viewModel.goToPreviousDay() } label: {
+                Image(systemName: "chevron.left")
+            }
+            .buttonStyle(.borderless)
+
+            Text(label)
+                .font(.headline)
+                .frame(minWidth: 240)
+
+            Button { viewModel.goToNextDay() } label: {
+                Image(systemName: "chevron.right")
+            }
+            .buttonStyle(.borderless)
+            .disabled(viewModel.isToday)  // no future days
+
+            if !viewModel.isToday {
+                Button("Today") { viewModel.goToToday() }
+                    .buttonStyle(.bordered)
+            }
+
+            Spacer()
         }
     }
 }
