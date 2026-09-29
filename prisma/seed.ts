@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client'
-import { getLocalDateString, addDays, getWeekStart } from '../lib/dates'
+import { getLocalDateString, addDays, daysBetween, getWeekStart } from '../lib/dates'
 import { isTaskDueOnDate, getOccurrenceKey, type RecurrenceTask } from '../lib/recurrence'
 
 const prisma = new PrismaClient()
@@ -16,16 +16,22 @@ function saturdayThisWeek(todayIso: string): string {
  * only run against fresh local or CI databases, never production.
  *
  * Uses canonical recurrence types and dates relative to today so the seed
- * stays valid whenever it runs: two weeks of completion history (frozen
- * pointsEarned snapshots) plus scheduled-but-missed days, with today left
- * incomplete for manual/E2E completion flows.
+ * stays valid whenever it runs: completion history (frozen pointsEarned
+ * snapshots) plus scheduled-but-missed days, with today left incomplete for
+ * manual/E2E completion flows. History spans the last two weeks AND reaches
+ * into the last week of the previous month, so the month-over-month trend has
+ * data on any day of the month (with only 14 days it vanished after the ~15th).
  */
 async function main() {
   await prisma.taskCompletion.deleteMany()
   await prisma.task.deleteMany()
 
   const today = getLocalDateString()
-  const startDate = addDays(today, -30)
+  // ISO dates sort lexically; take the earlier of the two bounds.
+  const earlier = (a: string, b: string) => (a < b ? a : b)
+  const prevMonthLastWeek = addDays(today.slice(0, 8) + '01', -7)
+  const historyFrom = earlier(addDays(today, -14), prevMonthLastWeek)
+  const startDate = earlier(addDays(today, -30), prevMonthLastWeek)
 
   const defs = [
     {
@@ -85,9 +91,9 @@ async function main() {
     tasks.push(await prisma.task.create({ data: t }))
   }
 
-  // History: past 14 days (today excluded — left incomplete on purpose).
+  // History: from historyFrom up to yesterday (today left incomplete on purpose).
   // Skip each task's two most recent due days so missed sections render.
-  const HISTORY_DAYS = 14
+  const HISTORY_DAYS = daysBetween(historyFrom, today)
   for (const task of tasks) {
     if (task.recurrenceType === 'NONE') continue
     const rec = task as unknown as RecurrenceTask
