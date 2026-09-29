@@ -8,17 +8,11 @@ create the Railway project (user's account/billing), then point the Mac app at i
 ## Shape
 ```mermaid
 flowchart TD
-    A[Next.js App Router<br/>app/] --> B[API Routes<br/>app/api/]
-    A --> C[Page Components<br/>app/(page|dashboard|tasks|settings)/]
-    A --> D[Layout & UI<br/>app/layout.tsx<br/>components/ui/]
-    B --> E[Prisma ORM<br/>lib/prisma.ts]
-    E --> F[Database<br/>prisma/dev.db]
-    C --> G[Lib Utilities<br/>lib/]
-    G --> H[Scoring Logic<br/>scoring.ts]
-    G --> I[Recurrence Engine<br/>recurrence.ts]
-    G --> J[Date Utilities<br/>dates.ts]
-    G --> K[Validation<br/>taskValidation.ts]
-    C --> L[Client Components<br/>'use client']
+    M[macOS app<br/>native/] -->|Bearer token| W[middleware.ts]
+    U[Web UI<br/>app/ pages] --> L
+    W --> A[API routes<br/>app/api/]
+    A --> L[lib/<br/>scoring · recurrence · progress]
+    L --> D[(SQLite via Prisma<br/>Railway volume /data)]
 ```
 
 ## Done (condensed)
@@ -34,10 +28,13 @@ flowchart TD
   Tailwind `@source not "../native"`; Xcode builds now go to the default DerivedData outside the repo
 - **Railway-ready** — `railway.json` (1 replica, restart on failure); `start:prod` =
   `prisma migrate deploy && next start -p $PORT`; `build` runs `prisma generate`; `prisma` is a runtime
-  dependency; Node >=22; `middleware.ts` bearer-token guard on `/api/*` when `API_TOKEN` is set (open for
+  dependency; Node >=22; `middleware.ts` secret guard on pages + `/api/*` when `API_TOKEN` is set (open for
   local dev); `GET /api/dashboard[?date=]`; soft-delete `DELETE /api/tasks/[id]`
-- **Lossless migration** — `npm run db:export` → `npm run db:import` → one-shot `POST /api/admin/restore`
+- **Lossless migration, both ways** — `npm run db:export` (local DB or a server via `GET /api/admin/export`)
+  → `npm run db:import` → one-shot `POST /api/admin/restore`
   (token-only, refuses a non-empty DB); rehearsed: 13 tasks / 12 completions identical
+- **Pages protected (Sep 29)** — live probe showed `/` and `/progress` served DB data without auth (matcher
+  covered only `/api`); browsers now get a Basic-auth prompt (password = token); matcher regression test
 - **Mac app auth** — token in Keychain; Settings has token field + working Test Connection; a 401 says
   "token rejected", not "can't reach server"
 - **Recovered from folder loss (Sep 28)** — project folder was moved to Trash and lost; re-cloned from
@@ -57,7 +54,6 @@ flowchart TD
 
 ## Blocked / needs research
 - Native app: background sync strategy, conflict resolution
-- ADRs not yet recorded: XcodeGen-generated Xcode projects; Railway + SQLite-on-volume + shared-token auth
 
 ## Known issues
 - Local dev: run `npm run dev` (localhost only) and keep the project out of folders that get cleaned
